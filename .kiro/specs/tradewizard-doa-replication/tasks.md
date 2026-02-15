@@ -268,12 +268,12 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - **Property 14: Debate Record Completeness**
     - **Validates: Requirements 9.4**
 
-- [ ] 17. Implement consensus engine
-  - [ ] 17.1 Create consensus engine prompts in prompts.py
+- [x] 17. Implement consensus engine
+  - [x] 17.1 Create consensus engine prompts in prompts.py
     - Write CONSENSUS_ENGINE_PROMPT
     - _Requirements: 10.1_
   
-  - [ ] 17.2 Create consensus engine node in nodes/consensus_engine.py
+  - [x] 17.2 Create consensus engine node in nodes/consensus_engine.py
     - Implement consensus_engine_node that calculates consensus probability
     - Weight signals by confidence and historical accuracy
     - Incorporate debate scores into consensus
