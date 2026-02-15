@@ -63,6 +63,7 @@ class ConsensusConfig:
     min_agents_required: int
     disagreement_threshold: float
     confidence_band_multiplier: float
+    min_edge_threshold: float
 
 
 @dataclass
@@ -159,7 +160,8 @@ def load_config() -> EngineConfig:
     consensus = ConsensusConfig(
         min_agents_required=int(os.getenv("CONSENSUS_MIN_AGENTS", "3")),
         disagreement_threshold=float(os.getenv("CONSENSUS_DISAGREEMENT_THRESHOLD", "0.15")),
-        confidence_band_multiplier=float(os.getenv("CONSENSUS_CONFIDENCE_BAND_MULTIPLIER", "1.96"))
+        confidence_band_multiplier=float(os.getenv("CONSENSUS_CONFIDENCE_BAND_MULTIPLIER", "1.96")),
+        min_edge_threshold=float(os.getenv("MIN_EDGE_THRESHOLD", "0.05"))
     )
     
     # Database configuration

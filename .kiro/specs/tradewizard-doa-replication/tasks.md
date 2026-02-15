@@ -306,12 +306,12 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - **Property 15: Debate Influence on Consensus**
     - **Validates: Requirements 9.5**
 
-- [ ] 18. Implement recommendation generation
-  - [ ] 18.1 Create recommendation generation prompts in prompts.py
+- [x] 18. Implement recommendation generation
+  - [x] 18.1 Create recommendation generation prompts in prompts.py
     - Write RECOMMENDATION_GENERATION_PROMPT
     - _Requirements: 11.1_
   
-  - [ ] 18.2 Create recommendation generation node in nodes/recommendation_generation.py
+  - [x] 18.2 Create recommendation generation node in nodes/recommendation_generation.py
     - Implement recommendation_generation_node that creates trade recommendations
     - Determine action (LONG_YES, LONG_NO, NO_TRADE) based on edge and consensus
     - Calculate entry zone, target zone, expected value, win probability
