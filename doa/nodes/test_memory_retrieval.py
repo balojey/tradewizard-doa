@@ -66,7 +66,8 @@ def create_test_config(enable_memory: bool = True) -> EngineConfig:
         consensus=ConsensusConfig(
             min_agents_required=3,
             disagreement_threshold=0.15,
-            confidence_band_multiplier=1.96
+            confidence_band_multiplier=1.96,
+            min_edge_threshold=0.05
         ),
         database=DatabaseConfig(
             supabase_url=None,
