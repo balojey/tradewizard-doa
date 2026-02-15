@@ -115,11 +115,8 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
     
     # Event Intelligence Agents
     if config.agents.enable_event_intelligence:
-        agent_nodes['breaking_news'] = create_agent_node(
-            agent_name=breaking_news.AGENT_NAME,
-            system_prompt=breaking_news.SYSTEM_PROMPT,
-            config=config
-        )
+        # Use autonomous breaking news agent
+        agent_nodes['breaking_news'] = breaking_news.create_breaking_news_agent_node(config)
         agent_nodes['event_impact'] = create_agent_node(
             agent_name=event_impact.AGENT_NAME,
             system_prompt=event_impact.SYSTEM_PROMPT,
@@ -128,11 +125,8 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
     
     # Polling & Statistical Agents
     if config.agents.enable_polling_statistical:
-        agent_nodes['polling_intelligence'] = create_agent_node(
-            agent_name=polling_intelligence.AGENT_NAME,
-            system_prompt=polling_intelligence.SYSTEM_PROMPT,
-            config=config
-        )
+        # Use autonomous polling intelligence agent
+        agent_nodes['polling_intelligence'] = polling_intelligence.create_polling_intelligence_agent_node(config)
         agent_nodes['historical_pattern'] = create_agent_node(
             agent_name=historical_pattern.AGENT_NAME,
             system_prompt=historical_pattern.SYSTEM_PROMPT,
@@ -141,11 +135,8 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
     
     # Sentiment & Narrative Agents
     if config.agents.enable_sentiment_narrative:
-        agent_nodes['media_sentiment'] = create_agent_node(
-            agent_name=media_sentiment.AGENT_NAME,
-            system_prompt=media_sentiment.SYSTEM_PROMPT,
-            config=config
-        )
+        # Use autonomous media sentiment agent
+        agent_nodes['media_sentiment'] = media_sentiment.create_media_sentiment_agent_node(config)
         agent_nodes['social_sentiment'] = create_agent_node(
             agent_name=social_sentiment.AGENT_NAME,
             system_prompt=social_sentiment.SYSTEM_PROMPT,

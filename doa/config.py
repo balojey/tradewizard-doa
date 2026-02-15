@@ -39,6 +39,49 @@ class PolymarketConfig:
 
 
 @dataclass
+class NewsDataConfig:
+    """NewsData API configuration."""
+    api_key: str
+    base_url: str = "https://newsdata.io/api/1"
+    timeout: int = 30
+    
+    def validate(self) -> List[str]:
+        """Validate NewsData configuration."""
+        errors = []
+        
+        if not self.api_key:
+            errors.append("NEWSDATA_API_KEY is required")
+            
+        if not self.base_url.startswith(("http://", "https://")):
+            errors.append("NEWSDATA_BASE_URL must be a valid URL")
+            
+        if self.timeout <= 0:
+            errors.append("NewsData timeout must be positive")
+            
+        return errors
+
+
+@dataclass
+class AutonomousAgentConfig:
+    """Autonomous agent configuration."""
+    max_tool_calls: int
+    timeout_ms: int
+    cache_enabled: bool
+    
+    def validate(self) -> List[str]:
+        """Validate autonomous agent configuration."""
+        errors = []
+        
+        if self.max_tool_calls <= 0:
+            errors.append("MAX_TOOL_CALLS must be positive")
+            
+        if self.timeout_ms <= 0:
+            errors.append("AGENT_TIMEOUT_MS must be positive")
+            
+        return errors
+
+
+@dataclass
 class LLMConfig:
     """Gradient AI LLM configuration."""
     model_name: str
@@ -207,16 +250,18 @@ class EngineConfig:
     consensus: ConsensusConfig
     database: DatabaseConfig
     memory_system: MemorySystemConfig
-    
+    newsdata: NewsDataConfig
+    autonomous_agents: AutonomousAgentConfig
+
     def validate(self) -> None:
         """
         Validate all configuration sections.
-        
+
         Raises:
             ConfigurationError: If any validation errors are found
         """
         all_errors = []
-        
+
         # Validate each configuration section
         all_errors.extend(self.polymarket.validate())
         all_errors.extend(self.langgraph.validate())
@@ -225,13 +270,15 @@ class EngineConfig:
         all_errors.extend(self.consensus.validate())
         all_errors.extend(self.database.validate())
         all_errors.extend(self.memory_system.validate())
-        
+        all_errors.extend(self.newsdata.validate())
+        all_errors.extend(self.autonomous_agents.validate())
+
         if all_errors:
             error_message = "Configuration validation failed:\n" + "\n".join(
                 f"  - {error}" for error in all_errors
             )
             raise ConfigurationError(error_message)
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert configuration to dictionary for logging/debugging."""
         return {
@@ -278,6 +325,16 @@ class EngineConfig:
                 "enable_memory": self.memory_system.enable_memory,
                 "max_historical_signals": self.memory_system.max_historical_signals,
                 "memory_timeout_ms": self.memory_system.memory_timeout_ms,
+            },
+            "newsdata": {
+                "api_key_configured": bool(self.newsdata.api_key),
+                "base_url": self.newsdata.base_url,
+                "timeout": self.newsdata.timeout,
+            },
+            "autonomous_agents": {
+                "max_tool_calls": self.autonomous_agents.max_tool_calls,
+                "timeout_ms": self.autonomous_agents.timeout_ms,
+                "cache_enabled": self.autonomous_agents.cache_enabled,
             },
         }
 
@@ -397,6 +454,30 @@ def load_config() -> EngineConfig:
         memory_timeout_ms=memory_timeout
     )
     
+    # NewsData configuration
+    newsdata = NewsDataConfig(
+        api_key=os.getenv("NEWSDATA_API_KEY", ""),
+        base_url=os.getenv("NEWSDATA_BASE_URL", "https://newsdata.io/api/1"),
+        timeout=int(os.getenv("NEWSDATA_TIMEOUT", "30"))
+    )
+    
+    # Autonomous agent configuration
+    try:
+        max_tool_calls = int(os.getenv("MAX_TOOL_CALLS", "5"))
+        autonomous_timeout = int(os.getenv("AUTONOMOUS_AGENT_TIMEOUT_MS", str(agent_timeout)))
+        cache_enabled = os.getenv("TOOL_CACHE_ENABLED", "true").lower() == "true"
+    except ValueError as e:
+        raise ConfigurationError(
+            f"Invalid numeric configuration value: {e}\n"
+            "  Please check MAX_TOOL_CALLS and AUTONOMOUS_AGENT_TIMEOUT_MS"
+        )
+    
+    autonomous_agents = AutonomousAgentConfig(
+        max_tool_calls=max_tool_calls,
+        timeout_ms=autonomous_timeout,
+        cache_enabled=cache_enabled
+    )
+    
     # Create and validate configuration
     config = EngineConfig(
         polymarket=polymarket,
@@ -405,7 +486,9 @@ def load_config() -> EngineConfig:
         agents=agents,
         consensus=consensus,
         database=database,
-        memory_system=memory_system
+        memory_system=memory_system,
+        newsdata=newsdata,
+        autonomous_agents=autonomous_agents
     )
     
     # Validate all configuration

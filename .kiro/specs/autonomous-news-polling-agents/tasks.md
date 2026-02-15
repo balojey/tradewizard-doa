@@ -135,13 +135,13 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - **Property 8: Input Validation**
     - **Validates: Requirements 2.8**
 
-- [ ] 5. Implement Polymarket LangChain Tools
-  - [~] 5.1 Create tool input schemas (tools/polymarket_tools.py)
+- [x] 5. Implement Polymarket LangChain Tools
+  - [x] 5.1 Create tool input schemas (tools/polymarket_tools.py)
     - Define Pydantic models for each tool's input (FetchRelatedMarketsInput, FetchHistoricalPricesInput, etc.)
     - Reuse ToolContext and ToolAuditEntry from newsdata_tools
     - _Requirements: 3.8_
   
-  - [~] 5.2 Implement Polymarket tool methods
+  - [x] 5.2 Implement Polymarket tool methods
     - Implement fetch_related_markets using existing Polymarket client
     - Implement fetch_historical_prices using existing Polymarket client
     - Implement fetch_cross_market_data using existing Polymarket client
@@ -149,7 +149,7 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - Implement detect_sentiment_shifts (detect price changes above threshold)
     - _Requirements: 3.1_
   
-  - [~] 5.3 Create LangChain tool factories
+  - [x] 5.3 Create LangChain tool factories
     - Implement create_fetch_related_markets_tool
     - Implement create_fetch_historical_prices_tool
     - Implement create_fetch_cross_market_data_tool
@@ -158,7 +158,7 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - Each tool wraps Polymarket client method with execution wrapper
     - _Requirements: 3.1, 3.7_
   
-  - [~] 5.4 Implement tool usage summary function
+  - [x] 5.4 Implement tool usage summary function
     - Create get_tool_usage_summary function (same as NewsData)
     - _Requirements: 3.2, 3.3_
   
@@ -182,20 +182,20 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - **Property 8: Input Validation** (Polymarket variant)
     - **Validates: Requirements 3.8**
 
-- [~] 6. Checkpoint - Ensure all infrastructure and tools tests pass
+- [x] 6. Checkpoint - Ensure all infrastructure and tools tests pass
   - Run all unit tests and property tests
   - Verify cache functionality
   - Verify tool execution and audit logging
   - Ask the user if questions arise
 
-- [ ] 7. Implement Autonomous Agent Factory
-  - [~] 7.1 Create autonomous agent factory (agents/autonomous_agent_factory.py)
+- [x] 7. Implement Autonomous Agent Factory
+  - [x] 7.1 Create autonomous agent factory (agents/autonomous_agent_factory.py)
     - Implement create_autonomous_agent function using LangGraph's create_react_agent
     - Configure agent with LLM, tools, and system prompt
     - Set recursion limit based on max_tool_calls
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
   
-  - [~] 7.2 Implement autonomous agent node wrapper
+  - [x] 7.2 Implement autonomous agent node wrapper
     - Create create_autonomous_agent_node function
     - Implement timeout handling using asyncio.wait_for
     - Implement output parsing and validation
@@ -211,20 +211,20 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - Mock LLM responses for deterministic testing
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 5.6, 5.7_
 
-- [ ] 8. Implement Autonomous Breaking News Agent (Replace Old Version)
-  - [~] 8.1 Delete old breaking_news.py agent
+- [x] 8. Implement Autonomous Breaking News Agent (Replace Old Version)
+  - [x] 8.1 Delete old breaking_news.py agent
     - Remove doa/agents/breaking_news.py (non-autonomous version)
     - Remove any imports of the old agent from other files
     - _Requirements: 6.9, 6.10_
   
-  - [~] 8.2 Create new autonomous Breaking News agent (agents/breaking_news.py)
+  - [x] 8.2 Create new autonomous Breaking News agent (agents/breaking_news.py)
     - Define system prompt with tool selection strategy
     - Create agent node using autonomous_agent_factory
     - Configure with NewsData tools
     - Set max_tool_calls to 5
     - _Requirements: 6.1, 6.2_
   
-  - [~] 8.3 Implement agent node function
+  - [x] 8.3 Implement agent node function
     - Check for MBD availability
     - Check for NewsData configuration
     - Initialize NewsData client and tool cache
@@ -259,20 +259,20 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - **Property 17: Comprehensive Audit Trail**
     - **Validates: Requirements 6.8**
 
-- [ ] 9. Implement Autonomous Media Sentiment Agent (Replace Old Version)
-  - [~] 9.1 Delete old media_sentiment.py agent
+- [x] 9. Implement Autonomous Media Sentiment Agent (Replace Old Version)
+  - [x] 9.1 Delete old media_sentiment.py agent
     - Remove doa/agents/media_sentiment.py (non-autonomous version)
     - Remove any imports of the old agent from other files
     - _Requirements: 7.9, 7.10_
   
-  - [~] 9.2 Create new autonomous Media Sentiment agent (agents/media_sentiment.py)
+  - [x] 9.2 Create new autonomous Media Sentiment agent (agents/media_sentiment.py)
     - Define system prompt with sentiment analysis strategy
     - Create agent node using autonomous_agent_factory
     - Configure with NewsData tools
     - Set max_tool_calls to 5
     - _Requirements: 7.1, 7.2_
   
-  - [~] 9.3 Implement agent node function
+  - [x] 9.3 Implement agent node function
     - Follow same pattern as Breaking News agent
     - Use sentiment-specific tool selection strategy
     - _Requirements: 7.3, 7.4, 7.5, 7.6, 7.7, 7.8_
@@ -287,20 +287,20 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - Same properties as Breaking News agent (Properties 12-17)
     - **Validates: Requirements 7.3, 7.4, 7.5, 7.6, 7.7, 7.8**
 
-- [ ] 10. Implement Autonomous Polling Intelligence Agent (Replace Old Version)
-  - [~] 10.1 Delete old polling_intelligence.py agent
+- [x] 10. Implement Autonomous Polling Intelligence Agent (Replace Old Version)
+  - [x] 10.1 Delete old polling_intelligence.py agent
     - Remove doa/agents/polling_intelligence.py (non-autonomous version)
     - Remove any imports of the old agent from other files
     - _Requirements: 8.9, 8.10_
   
-  - [~] 10.2 Create new autonomous Polling Intelligence agent (agents/polling_intelligence.py)
+  - [x] 10.2 Create new autonomous Polling Intelligence agent (agents/polling_intelligence.py)
     - Define system prompt with polling analysis strategy
     - Create agent node using autonomous_agent_factory
     - Configure with Polymarket tools
     - Set max_tool_calls to 5
     - _Requirements: 8.1, 8.2_
   
-  - [~] 10.3 Implement agent node function
+  - [x] 10.3 Implement agent node function
     - Follow same pattern as Breaking News agent
     - Use Polymarket tools instead of NewsData tools
     - Use polling-specific tool selection strategy
@@ -316,26 +316,26 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - Same properties as Breaking News agent (Properties 12-17)
     - **Validates: Requirements 8.3, 8.4, 8.5, 8.6, 8.7, 8.8**
 
-- [ ] 11. Extend Configuration Management (Simplified - No Fallback Flags)
-  - [~] 11.1 Add NewsDataConfig to config.py
+- [x] 11. Extend Configuration Management (Simplified - No Fallback Flags)
+  - [x] 11.1 Add NewsDataConfig to config.py
     - Define NewsDataConfig dataclass with api_key, base_url, timeout
     - Implement validate method
     - _Requirements: 9.1, 9.5_
   
-  - [~] 11.2 Add AutonomousAgentConfig to config.py
+  - [x] 11.2 Add AutonomousAgentConfig to config.py
     - Define AutonomousAgentConfig dataclass with max_tool_calls, timeout_ms, cache_enabled
     - Remove any "enabled" flag (autonomous agents are always enabled)
     - Implement validate method
     - _Requirements: 9.4, 9.5, 9.9_
   
-  - [~] 11.3 Update EngineConfig to include new configurations
+  - [x] 11.3 Update EngineConfig to include new configurations
     - Add newsdata: NewsDataConfig field
     - Add autonomous_agents: AutonomousAgentConfig field
     - Update validate method to validate new configs
     - Update to_dict method to include new configs
     - _Requirements: 9.7_
   
-  - [~] 11.4 Update load_config function
+  - [x] 11.4 Update load_config function
     - Load NEWSDATA_API_KEY from environment
     - Load MAX_TOOL_CALLS, AGENT_TIMEOUT_MS, TOOL_CACHE_ENABLED
     - Do NOT load AUTONOMOUS_AGENTS_ENABLED (removed)
@@ -366,20 +366,20 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - **Property 23: Error Context Logging**
     - **Validates: Requirements 10.8**
 
-- [ ] 13. Integration and Workflow Updates (Complete Replacement)
-  - [~] 13.1 Update workflow to use only autonomous agents
+- [x] 13. Integration and Workflow Updates (Complete Replacement)
+  - [x] 13.1 Update workflow to use only autonomous agents
     - Import autonomous agent nodes (breaking_news, media_sentiment, polling_intelligence)
     - Remove all imports of old non-autonomous agents
     - Remove any conditional logic for enabling/disabling autonomous agents
     - Use autonomous agents as the only implementation
     - _Requirements: 6.1, 6.9, 7.1, 7.9, 8.1, 8.9_
   
-  - [~] 13.2 Update agent selection logic
+  - [x] 13.2 Update agent selection logic
     - Remove any checks for AUTONOMOUS_AGENTS_ENABLED
     - Always use autonomous agents (no fallback)
     - _Requirements: 9.9_
   
-  - [~] 13.3 Clean up old agent references
+  - [x] 13.3 Clean up old agent references
     - Search codebase for any remaining references to old agents
     - Remove or update all references to point to new autonomous agents
     - Update any documentation that mentions the old agents
@@ -395,7 +395,7 @@ This implementation plan breaks down the autonomous news and polling agents feat
     - Verify no old agent code paths are executed
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6, 6.7, 6.8, 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.7, 7.8, 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7, 8.8_
 
-- [~] 14. Final checkpoint - Ensure all tests pass
+- [ ] 14. Final checkpoint - Ensure all tests pass
   - Run all unit tests
   - Run all property tests
   - Run all integration tests
@@ -403,22 +403,22 @@ This implementation plan breaks down the autonomous news and polling agents feat
   - Verify all 23 properties are implemented and passing
   - Ask the user if questions arise
 
-- [ ] 15. Documentation and Deployment
-  - [~] 15.1 Update README with new features
+- [x] 15. Documentation and Deployment
+  - [x] 15.1 Update README with new features
     - Document autonomous agents as the default and only implementation
     - Document new environment variables
     - Document tool-calling capabilities
     - Remove any mention of non-autonomous agents or fallback modes
     - _Requirements: 9.1, 9.2, 9.4, 9.9_
   
-  - [~] 15.2 Create migration guide
+  - [x] 15.2 Create migration guide
     - Document complete replacement of old agents with autonomous agents
     - Document configuration changes
     - Document removal of AUTONOMOUS_AGENTS_ENABLED flag
     - Explain that there is no backward compatibility (clean break)
     - _Requirements: 6.9, 6.10, 7.9, 7.10, 8.9, 8.10, 9.9_
   
-  - [~] 15.3 Update .env.example
+  - [x] 15.3 Update .env.example
     - Add all new environment variables with descriptions
     - Remove AUTONOMOUS_AGENTS_ENABLED (no longer needed)
     - _Requirements: 9.1, 9.2, 9.4, 9.9_
