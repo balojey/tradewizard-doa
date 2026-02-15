@@ -56,19 +56,19 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
 - [x] 4. Checkpoint - Ensure all tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 5. Implement database persistence layer
-  - [ ] 5.1 Create Supabase client in database/supabase_client.py
+- [x] 5. Implement database persistence layer
+  - [x] 5.1 Create Supabase client in database/supabase_client.py
     - Implement SupabaseClient class with connection management
     - Add connection pooling and error handling
     - Support both Supabase Cloud and local PostgreSQL
     - _Requirements: 6.1, 6.5_
   
-  - [ ] 5.2 Create database schema in database/migrations/001_initial_schema.sql
+  - [x] 5.2 Create database schema in database/migrations/001_initial_schema.sql
     - Create markets, agent_signals, recommendations, analysis_history tables
     - Add indexes for performance
     - _Requirements: 6.3_
   
-  - [ ] 5.3 Implement persistence layer in database/persistence.py
+  - [x] 5.3 Implement persistence layer in database/persistence.py
     - Implement save_market_data, save_agent_signals, save_recommendation methods
     - Implement get_historical_signals for memory retrieval
     - Add fallback to in-memory storage on database errors
