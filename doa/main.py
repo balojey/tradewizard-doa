@@ -433,10 +433,8 @@ async def analyze_market(
     
     This is the main entry point for market analysis. It:
     1. Builds the workflow graph
-    2. Initializes Opik callback handler (if enabled)
-    3. Invokes the graph with the condition_id
-    4. Flushes Opik traces after completion
-    5. Returns the complete analysis result
+    2. Invokes the graph with the condition_id
+    3. Returns the complete analysis result
     
     Args:
         condition_id: Polymarket condition ID to analyze
@@ -471,21 +469,6 @@ async def analyze_market(
     logger.info(f"Condition ID: {condition_id}")
     logger.info(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     
-    # Initialize Opik callback handler if enabled
-    opik_callback = None
-    if config.opik.enable_tracing:
-        try:
-            from opik.integrations.langchain import OpikTracer
-            opik_callback = OpikTracer(
-                project_name=config.opik.project_name,
-                tags=["market_analysis", condition_id]
-            )
-            logger.info("Opik tracing enabled")
-        except ImportError:
-            logger.warning("Opik not available, continuing without tracing")
-        except Exception as e:
-            logger.warning(f"Failed to initialize Opik: {e}")
-    
     try:
         # Build workflow graph
         workflow = build_market_analysis_graph(config)
@@ -510,12 +493,7 @@ async def analyze_market(
         # Invoke graph
         logger.info("Starting workflow execution...")
         
-        # Add Opik callback to config if available
-        invoke_config = {}
-        if opik_callback:
-            invoke_config["callbacks"] = [opik_callback]
-        
-        final_state = await graph.ainvoke(initial_state, config=invoke_config)
+        final_state = await graph.ainvoke(initial_state)
         
         duration_s = time.time() - start_time
         
@@ -543,14 +521,6 @@ async def analyze_market(
         else:
             logger.warning("No recommendation generated")
         
-        # Flush Opik traces
-        if opik_callback:
-            try:
-                opik_callback.flush()
-                logger.info("Opik traces flushed")
-            except Exception as e:
-                logger.warning(f"Failed to flush Opik traces: {e}")
-        
         # Create analysis result
         result = AnalysisResult(
             recommendation=recommendation,
@@ -569,14 +539,6 @@ async def analyze_market(
     except Exception as e:
         duration_s = time.time() - start_time
         logger.error(f"Market analysis failed after {duration_s:.2f}s: {e}", exc_info=True)
-        
-        # Flush Opik traces even on error
-        if opik_callback:
-            try:
-                opik_callback.flush()
-            except:
-                pass
-        
         raise
 
 

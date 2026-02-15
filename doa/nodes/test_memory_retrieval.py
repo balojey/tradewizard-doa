@@ -22,7 +22,6 @@ from config import (
     AgentConfig,
     PolymarketConfig,
     LangGraphConfig,
-    OpikConfig,
     LLMConfig,
     ConsensusConfig,
     DatabaseConfig
@@ -40,12 +39,6 @@ def create_test_config(enable_memory: bool = True) -> EngineConfig:
         langgraph=LangGraphConfig(
             checkpointer_type="memory",
             sqlite_path=None
-        ),
-        opik=OpikConfig(
-            api_key=None,
-            workspace=None,
-            project_name="test",
-            enable_tracing=False
         ),
         llm=LLMConfig(
             model_name="test-model",

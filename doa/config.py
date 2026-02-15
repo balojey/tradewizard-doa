@@ -49,15 +49,6 @@ class DatabaseConfig:
 
 
 @dataclass
-class OpikConfig:
-    """Opik observability configuration."""
-    api_key: Optional[str]
-    workspace: Optional[str]
-    project_name: str
-    enable_tracing: bool
-
-
-@dataclass
 class ConsensusConfig:
     """Consensus engine configuration."""
     min_agents_required: int
@@ -86,7 +77,6 @@ class EngineConfig:
     """Main engine configuration."""
     polymarket: PolymarketConfig
     langgraph: LangGraphConfig
-    opik: OpikConfig
     llm: LLMConfig
     agents: AgentConfig
     consensus: ConsensusConfig
@@ -126,14 +116,6 @@ def load_config() -> EngineConfig:
     langgraph = LangGraphConfig(
         checkpointer_type=os.getenv("LANGGRAPH_CHECKPOINTER", "memory"),
         sqlite_path=os.getenv("LANGGRAPH_SQLITE_PATH", "./checkpoints.db")
-    )
-    
-    # Opik configuration
-    opik = OpikConfig(
-        api_key=os.getenv("OPIK_API_KEY"),
-        workspace=os.getenv("OPIK_WORKSPACE"),
-        project_name=os.getenv("OPIK_PROJECT_NAME", "tradewizard-doa"),
-        enable_tracing=os.getenv("OPIK_ENABLE_TRACING", "true").lower() == "true"
     )
     
     # LLM configuration
@@ -182,7 +164,6 @@ def load_config() -> EngineConfig:
     return EngineConfig(
         polymarket=polymarket,
         langgraph=langgraph,
-        opik=opik,
         llm=llm,
         agents=agents,
         consensus=consensus,

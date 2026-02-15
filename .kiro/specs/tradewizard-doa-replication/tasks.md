@@ -380,8 +380,8 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - Test monitor command initialization
     - _Requirements: 7.1, 7.2, 7.3, 7.4_
 
-- [ ] 22. Implement observability integration
-  - [ ] 22.1 Create Opik integration in utils/opik_integration.py
+- [x] 22. Implement observability integration
+  - [x] 22.1 Create Opik integration in utils/opik_integration.py
     - Implement Opik callback handler initialization
     - Add trace flushing logic
     - Implement cost tracking extraction from traces

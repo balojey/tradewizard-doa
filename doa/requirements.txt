@@ -11,7 +11,6 @@ typing_extensions
 
 # TradeWizard DOA Dependencies
 supabase>=2.0.0
-opik>=0.1.0
 click>=8.1.0
 pytest>=8.0.0
 hypothesis>=6.0.0

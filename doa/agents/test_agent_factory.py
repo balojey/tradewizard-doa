@@ -11,7 +11,7 @@ from agents.agent_factory import (
     execute_agent_with_timeout,
     retry_with_backoff,
 )
-from config import EngineConfig, LLMConfig, AgentConfig, OpikConfig
+from config import EngineConfig, LLMConfig, AgentConfig
 from models.types import (
     AgentMemoryContext,
     AgentSignal,
