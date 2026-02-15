@@ -14,6 +14,7 @@ from .evaluator import (
     SectionEvaluation
 )
 from .composer import compose_report
+from .agent_factory import create_agent_node, format_memory_context, format_market_briefing
 
 __all__ = [
     "generate_initial_plan",
@@ -30,4 +31,7 @@ __all__ = [
     "route_after_section_evaluation",
     "SectionEvaluation",
     "compose_report",
+    "create_agent_node",
+    "format_memory_context",
+    "format_market_briefing",
 ]
