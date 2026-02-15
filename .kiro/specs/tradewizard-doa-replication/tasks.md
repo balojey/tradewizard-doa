@@ -174,13 +174,13 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - Create agents/narrative_velocity.py
     - _Requirements: 3.4, 3.9_
 
-- [ ] 12. Implement Price Action agents
-  - [ ] 12.1 Create Price Action prompts in prompts.py
+- [x] 12. Implement Price Action agents
+  - [x] 12.1 Create Price Action prompts in prompts.py
     - Write MOMENTUM_PROMPT
     - Write MEAN_REVERSION_PROMPT
     - _Requirements: 3.5_
   
-  - [ ] 12.2 Create Price Action agent modules
+  - [x] 12.2 Create Price Action agent modules
     - Create agents/momentum.py
     - Create agents/mean_reversion.py
     - _Requirements: 3.5, 3.9_
