@@ -44,7 +44,8 @@ def create_test_config(enable_memory: bool = True) -> EngineConfig:
             model_name="test-model",
             temperature=0.7,
             max_tokens=2000,
-            timeout_ms=30000
+            timeout_ms=30000,
+            api_key="test-api-key"
         ),
         agents=AgentConfig(
             timeout_ms=45000,
