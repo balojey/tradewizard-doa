@@ -3,7 +3,15 @@ gradient>=3.9.0
 langchain-gradient
 langchain>=0.3.0
 langchain-core>=0.3.0
+langgraph>=0.2.0
 pydantic>=2.6,<3
 python-dotenv
 httpx
 typing_extensions
+
+# TradeWizard DOA Dependencies
+supabase>=2.0.0
+opik>=0.1.0
+click>=8.1.0
+pytest>=8.0.0
+hypothesis>=6.0.0
