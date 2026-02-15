@@ -1,7 +1,7 @@
 """
 TradeWizard DOA - Market Analysis Workflow
 
-This module implements the main LangGraph workflow for analyzing prediction markets
+This module implements the main LangGraph workflow for analyzing p
 on Polymarket using specialized AI agents. The workflow orchestrates:
 
 1. Market data ingestion from Polymarket
@@ -24,12 +24,7 @@ from typing import Any, Dict, List, Optional
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langgraph.checkpoint.memory import MemorySaver
-
-# Optional PostgreSQL checkpointer
-try:
-    from langgraph.checkpoint.postgres import PostgresSaver
-except ImportError:
-    PostgresSaver = None
+from langgraph.checkpoint.postgres import PostgresSaver
 
 from config import EngineConfig, load_config
 from models.state import GraphState
@@ -40,7 +35,7 @@ from database.persistence import PersistenceLayer
 
 # Import node factories
 from nodes.market_ingestion import create_market_ingestion_node
-from nodes.memory_retrieval import create_memory_retrieval_node
+from nodes.memory_rl_node
 from nodes.keyword_extraction import create_keyword_extraction_node
 from nodes.dynamic_agent_selection import create_dynamic_agent_selection_node
 from nodes.agent_signal_fusion import create_agent_signal_fusion_node
@@ -49,7 +44,7 @@ from nodes.cross_examination import create_cross_examination_node
 from nodes.consensus_engine import create_consensus_engine_node
 from nodes.recommendation_generation import create_recommendation_generation_node
 
-# Import agent factory and agent modules
+ent factory and agent modules
 from agents.agent_factory import create_agent_node
 from agents import (
     market_microstructure,
@@ -78,7 +73,7 @@ logger = logging.getLogger("TradeWizard")
 
 # ============================================================================
 # AGENT NODE CREATION
-# ============================================================================
+# ===============================================
 
 def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
     """
@@ -107,7 +102,7 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
             system_prompt=probability_baseline.SYSTEM_PROMPT,
             config=config
         )
-        agent_nodes['risk_assessment'] = create_agent_node(
+        agent_nodes['risk_assessment'] = _agent_node(
             agent_name=risk_assessment.AGENT_NAME,
             system_prompt=risk_assessment.SYSTEM_PROMPT,
             config=config
@@ -121,7 +116,7 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
             config=config
         )
         agent_nodes['event_impact'] = create_agent_node(
-            agent_name=event_impact.AGENT_NAME,
+me=event_impact.AGENT_NAME,
             system_prompt=event_impact.SYSTEM_PROMPT,
             config=config
         )
@@ -175,7 +170,7 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
         agent_nodes['catalyst'] = create_agent_node(
             agent_name=catalyst.AGENT_NAME,
             system_prompt=catalyst.SYSTEM_PROMPT,
-            config=config
+nfig
         )
         agent_nodes['tail_risk'] = create_agent_node(
             agent_name=tail_risk.AGENT_NAME,
@@ -191,7 +186,7 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
 # PARALLEL AGENT DISPATCH
 # ============================================================================
 
-def dispatch_parallel_agents(state: GraphState) -> List[Send]:
+def dispatch_parallel_agents(sraphState) -> List[Send]:
     """
     Fan-out: Dispatch parallel execution for all active agents using Send API.
     
@@ -221,7 +216,6 @@ def dispatch_parallel_agents(state: GraphState) -> List[Send]:
     return sends
 
 
-
 # ============================================================================
 # WORKFLOW GRAPH CONSTRUCTION
 # ============================================================================
@@ -237,7 +231,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     2. market_ingestion → memory_retrieval
     3. memory_retrieval → keyword_extraction
     4. keyword_extraction → dynamic_agent_selection
-    5. dynamic_agent_selection → [parallel agents] (via Send API)
+ → [parallel agents] (via Send API)
     6. [all agents] → agent_signal_fusion (fan-in)
     7. agent_signal_fusion → thesis_construction
     8. thesis_construction → cross_examination
@@ -264,7 +258,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
             persistence_layer = PersistenceLayer(supabase_client)
             logger.info("Database persistence enabled")
         except Exception as e:
-            logger.warning(f"Failed to initialize database persistence: {e}")
+ {e}")
             logger.warning("Continuing without persistence")
     
     # Create workflow graph
@@ -280,7 +274,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
         create_market_ingestion_node(polymarket_client, config)
     )
     
-    # Memory retrieval node
+e
     workflow.add_node(
         "memory_retrieval",
         create_memory_retrieval_node(persistence_layer, config)
@@ -318,7 +312,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     # Cross-examination node
     workflow.add_node(
         "cross_examination",
-        create_cross_examination_node(config)
+        create_cross_ex_node(config)
     )
     
     # Consensus engine node
@@ -335,7 +329,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     
     # ========================================================================
     # Define workflow edges
-    # ========================================================================
+    # ================================================================
     
     # Sequential edges: START → market_ingestion → memory_retrieval → keyword_extraction → dynamic_agent_selection
     workflow.add_edge(START, "market_ingestion")
@@ -344,7 +338,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     workflow.add_edge("keyword_extraction", "dynamic_agent_selection")
     
     # Conditional edges for parallel agent dispatch (fan-out)
-    # dispatch_parallel_agents returns List[Send] for each active agent
+    # dispatch_parallel_agents returnsnt
     workflow.add_conditional_edges(
         "dynamic_agent_selection",
         dispatch_parallel_agents,
@@ -365,7 +359,6 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     logger.info("Workflow graph construction complete")
     
     return workflow
-
 
 
 def create_checkpointer(config: EngineConfig):
@@ -400,11 +393,8 @@ def create_checkpointer(config: EngineConfig):
     
     elif checkpointer_type == "postgres":
         logger.info("Using PostgreSQL checkpointer")
-        if PostgresSaver is None:
-            logger.warning("PostgreSQL checkpointer not available, falling back to memory")
-            return MemorySaver()
         try:
-            if config.database.postgres_connection_string:
+nnection_string:
                 return PostgresSaver.from_conn_string(
                     config.database.postgres_connection_string
                 )
@@ -432,7 +422,7 @@ async def analyze_market(
     Analyze a prediction market and generate trade recommendation.
     
     This is the main entry point for market analysis. It:
-    1. Builds the workflow graph
+low graph
     2. Initializes Opik callback handler (if enabled)
     3. Invokes the graph with the condition_id
     4. Flushes Opik traces after completion
@@ -479,7 +469,7 @@ async def analyze_market(
             opik_callback = OpikTracer(
                 project_name=config.opik.project_name,
                 tags=["market_analysis", condition_id]
-            )
+  )
             logger.info("Opik tracing enabled")
         except ImportError:
             logger.warning("Opik not available, continuing without tracing")
@@ -494,7 +484,7 @@ async def analyze_market(
         checkpointer = create_checkpointer(config)
         
         # Compile graph with checkpointer
-        graph = workflow.compile(checkpointer=checkpointer)
+pile(checkpointer=checkpointer)
         
         logger.info("Workflow graph compiled successfully")
         
@@ -511,7 +501,7 @@ async def analyze_market(
         logger.info("Starting workflow execution...")
         
         # Add Opik callback to config if available
-        invoke_config = {}
+g = {}
         if opik_callback:
             invoke_config["callbacks"] = [opik_callback]
         
@@ -524,7 +514,7 @@ async def analyze_market(
         logger.info("=" * 80)
         logger.info(f"Duration: {duration_s:.2f}s")
         logger.info(f"Agent signals: {len(final_state.get('agent_signals', []))}")
-        logger.info(f"Agent errors: {len(final_state.get('agent_errors', []))}")
+ errors: {len(final_state.get('agent_errors', []))}")
         
         # Extract results from final state
         recommendation = final_state.get("recommendation")
@@ -547,7 +537,7 @@ async def analyze_market(
         if opik_callback:
             try:
                 opik_callback.flush()
-                logger.info("Opik traces flushed")
+r.info("Opik traces flushed")
             except Exception as e:
                 logger.warning(f"Failed to flush Opik traces: {e}")
         
@@ -580,7 +570,6 @@ async def analyze_market(
         raise
 
 
-
 # ============================================================================
 # CLI ENTRY POINT (for testing)
 # ============================================================================
@@ -590,7 +579,7 @@ async def main():
     CLI entry point for testing market analysis.
     
     Usage:
-        python main.py [condition_id]
+        python main.py
     """
     import sys
     

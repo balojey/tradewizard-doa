@@ -331,8 +331,8 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
 - [x] 19. Checkpoint - Ensure all workflow node tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 20. Implement main workflow orchestration
-  - [ ] 20.1 Create workflow graph in main.py
+- [x] 20. Implement main workflow orchestration
+  - [x] 20.1 Create workflow graph in main.py
     - Implement build_market_analysis_graph function
     - Add all nodes to StateGraph
     - Define edges: START → market_ingestion → memory_retrieval → keyword_extraction → dynamic_agent_selection
@@ -342,7 +342,7 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - Compile graph with checkpointer (MemorySaver or PostgreSQL)
     - _Requirements: 1.1, 1.2, 4.1, 4.4, 4.5_
   
-  - [ ] 20.2 Implement analyze_market function in main.py
+  - [x] 20.2 Implement analyze_market function in main.py
     - Create workflow graph
     - Initialize Opik callback handler
     - Invoke graph with condition_id and config

@@ -2,7 +2,7 @@
 
 import logging
 import time
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 import statistics
 
 from models.state import GraphState
