@@ -86,14 +86,14 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - **Property 26: Database Fallback**
     - **Validates: Requirements 13.3**
 
-- [ ] 6. Implement memory retrieval system
-  - [ ] 6.1 Create memory retrieval service in database/memory_retrieval.py
+- [x] 6. Implement memory retrieval system
+  - [x] 6.1 Create memory retrieval service in database/memory_retrieval.py
     - Implement query_agent_memory function to fetch historical signals
     - Implement memory context formatting
     - Add timeout handling for slow queries
     - _Requirements: 5.1, 5.2, 5.3_
   
-  - [ ] 6.2 Create memory retrieval node in nodes/memory_retrieval.py
+  - [x] 6.2 Create memory retrieval node in nodes/memory_retrieval.py
     - Implement memory_retrieval_node that queries history for all agents
     - Populate memory_context in state
     - _Requirements: 5.5_
