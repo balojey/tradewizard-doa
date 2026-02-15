@@ -199,24 +199,24 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
 - [x] 14. Checkpoint - Ensure all agent tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 15. Implement workflow nodes
-  - [ ] 15.1 Create market ingestion node in nodes/market_ingestion.py
+- [x] 15. Implement workflow nodes
+  - [x] 15.1 Create market ingestion node in nodes/market_ingestion.py
     - Implement market_ingestion_node that fetches market and event data
     - Transform to MBD and extract keywords
     - Handle ingestion errors gracefully
     - _Requirements: 1.2, 2.2, 2.3, 2.4_
   
-  - [ ] 15.2 Create keyword extraction node in nodes/keyword_extraction.py
+  - [x] 15.2 Create keyword extraction node in nodes/keyword_extraction.py
     - Implement keyword_extraction_node that extracts keywords from MBD
     - Support event-level and market-level keywords
     - _Requirements: 1.2_
   
-  - [ ] 15.3 Create dynamic agent selection node in nodes/dynamic_agent_selection.py
+  - [x] 15.3 Create dynamic agent selection node in nodes/dynamic_agent_selection.py
     - Implement dynamic_agent_selection_node that determines active agents
     - Always include MVP agents, conditionally include advanced agents
     - _Requirements: 1.2, 4.2_
   
-  - [ ] 15.4 Create agent signal fusion node in nodes/agent_signal_fusion.py
+  - [x] 15.4 Create agent signal fusion node in nodes/agent_signal_fusion.py
     - Implement agent_signal_fusion_node that aggregates agent signals
     - Apply dynamic weighting based on confidence and historical accuracy
     - Calculate signal alignment and detect conflicts
