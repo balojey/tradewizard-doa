@@ -120,14 +120,14 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - **Property 27: Timeout Handling**
     - **Validates: Requirements 13.4**
 
-- [ ] 8. Implement MVP agents
-  - [ ] 8.1 Create agent prompts in prompts.py
+- [x] 8. Implement MVP agents
+  - [x] 8.1 Create agent prompts in prompts.py
     - Write MARKET_MICROSTRUCTURE_PROMPT
     - Write PROBABILITY_BASELINE_PROMPT
     - Write RISK_ASSESSMENT_PROMPT
     - _Requirements: 3.1_
   
-  - [ ] 8.2 Create MVP agent modules
+  - [x] 8.2 Create MVP agent modules
     - Create agents/market_microstructure.py with AGENT_NAME and SYSTEM_PROMPT
     - Create agents/probability_baseline.py with AGENT_NAME and SYSTEM_PROMPT
     - Create agents/risk_assessment.py with AGENT_NAME and SYSTEM_PROMPT
