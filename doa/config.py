@@ -2,11 +2,16 @@
 
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, List, Dict, Any
 from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
+
+
+class ConfigurationError(Exception):
+    """Raised when configuration validation fails."""
+    pass
 
 
 @dataclass
@@ -15,6 +20,22 @@ class PolymarketConfig:
     gamma_api_url: str
     clob_api_url: str
     api_key: Optional[str] = None
+    
+    def validate(self) -> List[str]:
+        """Validate Polymarket configuration."""
+        errors = []
+        
+        if not self.gamma_api_url:
+            errors.append("POLYMARKET_GAMMA_API_URL is required")
+        elif not self.gamma_api_url.startswith(("http://", "https://")):
+            errors.append("POLYMARKET_GAMMA_API_URL must be a valid URL")
+            
+        if not self.clob_api_url:
+            errors.append("POLYMARKET_CLOB_API_URL is required")
+        elif not self.clob_api_url.startswith(("http://", "https://")):
+            errors.append("POLYMARKET_CLOB_API_URL must be a valid URL")
+            
+        return errors
 
 
 @dataclass
@@ -24,6 +45,28 @@ class LLMConfig:
     temperature: float
     max_tokens: int
     timeout_ms: int
+    api_key: str
+    
+    def validate(self) -> List[str]:
+        """Validate LLM configuration."""
+        errors = []
+        
+        if not self.api_key:
+            errors.append("DIGITALOCEAN_INFERENCE_KEY is required for Gradient AI LLM access")
+            
+        if not self.model_name:
+            errors.append("LLM_MODEL_NAME is required")
+            
+        if not 0.0 <= self.temperature <= 2.0:
+            errors.append("LLM_TEMPERATURE must be between 0.0 and 2.0")
+            
+        if self.max_tokens <= 0:
+            errors.append("LLM_MAX_TOKENS must be positive")
+            
+        if self.timeout_ms <= 0:
+            errors.append("LLM_TIMEOUT_MS must be positive")
+            
+        return errors
 
 
 @dataclass
@@ -37,6 +80,22 @@ class AgentConfig:
     enable_sentiment_narrative: bool
     enable_price_action: bool
     enable_event_scenario: bool
+    
+    def validate(self) -> List[str]:
+        """Validate agent configuration."""
+        errors = []
+        
+        if self.timeout_ms <= 0:
+            errors.append("AGENT_TIMEOUT_MS must be positive")
+            
+        if self.max_retries < 0:
+            errors.append("AGENT_MAX_RETRIES must be non-negative")
+            
+        # At least MVP agents should be enabled
+        if not self.enable_mvp_agents:
+            errors.append("MVP agents (ENABLE_MVP_AGENTS) must be enabled for basic functionality")
+            
+        return errors
 
 
 @dataclass
@@ -46,6 +105,27 @@ class DatabaseConfig:
     supabase_key: Optional[str]
     postgres_connection_string: Optional[str]
     enable_persistence: bool
+    
+    def validate(self) -> List[str]:
+        """Validate database configuration."""
+        errors = []
+        
+        if self.enable_persistence:
+            # At least one database connection method must be configured
+            has_supabase = self.supabase_url and self.supabase_key
+            has_postgres = self.postgres_connection_string
+            
+            if not has_supabase and not has_postgres:
+                errors.append(
+                    "Database persistence is enabled but no connection configured. "
+                    "Provide either SUPABASE_URL + SUPABASE_KEY or POSTGRES_CONNECTION_STRING"
+                )
+            
+            # Validate Supabase URL format if provided
+            if self.supabase_url and not self.supabase_url.startswith(("http://", "https://")):
+                errors.append("SUPABASE_URL must be a valid URL")
+                
+        return errors
 
 
 @dataclass
@@ -55,6 +135,24 @@ class ConsensusConfig:
     disagreement_threshold: float
     confidence_band_multiplier: float
     min_edge_threshold: float
+    
+    def validate(self) -> List[str]:
+        """Validate consensus configuration."""
+        errors = []
+        
+        if self.min_agents_required < 1:
+            errors.append("CONSENSUS_MIN_AGENTS must be at least 1")
+            
+        if not 0.0 <= self.disagreement_threshold <= 1.0:
+            errors.append("CONSENSUS_DISAGREEMENT_THRESHOLD must be between 0.0 and 1.0")
+            
+        if self.confidence_band_multiplier <= 0:
+            errors.append("CONSENSUS_CONFIDENCE_BAND_MULTIPLIER must be positive")
+            
+        if not 0.0 <= self.min_edge_threshold <= 1.0:
+            errors.append("MIN_EDGE_THRESHOLD must be between 0.0 and 1.0")
+            
+        return errors
 
 
 @dataclass
@@ -63,6 +161,18 @@ class MemorySystemConfig:
     enable_memory: bool
     max_historical_signals: int
     memory_timeout_ms: int
+    
+    def validate(self) -> List[str]:
+        """Validate memory system configuration."""
+        errors = []
+        
+        if self.max_historical_signals < 0:
+            errors.append("MAX_HISTORICAL_SIGNALS must be non-negative")
+            
+        if self.memory_timeout_ms <= 0:
+            errors.append("MEMORY_TIMEOUT_MS must be positive")
+            
+        return errors
 
 
 @dataclass
@@ -70,6 +180,21 @@ class LangGraphConfig:
     """LangGraph workflow configuration."""
     checkpointer_type: str  # "memory", "sqlite", "postgres"
     sqlite_path: Optional[str]
+    
+    def validate(self) -> List[str]:
+        """Validate LangGraph configuration."""
+        errors = []
+        
+        valid_checkpointers = ["memory", "sqlite", "postgres"]
+        if self.checkpointer_type not in valid_checkpointers:
+            errors.append(
+                f"LANGGRAPH_CHECKPOINTER must be one of: {', '.join(valid_checkpointers)}"
+            )
+            
+        if self.checkpointer_type == "sqlite" and not self.sqlite_path:
+            errors.append("LANGGRAPH_SQLITE_PATH is required when using sqlite checkpointer")
+            
+        return errors
 
 
 @dataclass
@@ -82,6 +207,79 @@ class EngineConfig:
     consensus: ConsensusConfig
     database: DatabaseConfig
     memory_system: MemorySystemConfig
+    
+    def validate(self) -> None:
+        """
+        Validate all configuration sections.
+        
+        Raises:
+            ConfigurationError: If any validation errors are found
+        """
+        all_errors = []
+        
+        # Validate each configuration section
+        all_errors.extend(self.polymarket.validate())
+        all_errors.extend(self.langgraph.validate())
+        all_errors.extend(self.llm.validate())
+        all_errors.extend(self.agents.validate())
+        all_errors.extend(self.consensus.validate())
+        all_errors.extend(self.database.validate())
+        all_errors.extend(self.memory_system.validate())
+        
+        if all_errors:
+            error_message = "Configuration validation failed:\n" + "\n".join(
+                f"  - {error}" for error in all_errors
+            )
+            raise ConfigurationError(error_message)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert configuration to dictionary for logging/debugging."""
+        return {
+            "polymarket": {
+                "gamma_api_url": self.polymarket.gamma_api_url,
+                "clob_api_url": self.polymarket.clob_api_url,
+                "api_key_configured": bool(self.polymarket.api_key),
+            },
+            "langgraph": {
+                "checkpointer_type": self.langgraph.checkpointer_type,
+                "sqlite_path": self.langgraph.sqlite_path,
+            },
+            "llm": {
+                "model_name": self.llm.model_name,
+                "temperature": self.llm.temperature,
+                "max_tokens": self.llm.max_tokens,
+                "timeout_ms": self.llm.timeout_ms,
+                "api_key_configured": bool(self.llm.api_key),
+            },
+            "agents": {
+                "timeout_ms": self.agents.timeout_ms,
+                "max_retries": self.agents.max_retries,
+                "enabled_agent_groups": {
+                    "mvp": self.agents.enable_mvp_agents,
+                    "event_intelligence": self.agents.enable_event_intelligence,
+                    "polling_statistical": self.agents.enable_polling_statistical,
+                    "sentiment_narrative": self.agents.enable_sentiment_narrative,
+                    "price_action": self.agents.enable_price_action,
+                    "event_scenario": self.agents.enable_event_scenario,
+                },
+            },
+            "consensus": {
+                "min_agents_required": self.consensus.min_agents_required,
+                "disagreement_threshold": self.consensus.disagreement_threshold,
+                "confidence_band_multiplier": self.consensus.confidence_band_multiplier,
+                "min_edge_threshold": self.consensus.min_edge_threshold,
+            },
+            "database": {
+                "enable_persistence": self.database.enable_persistence,
+                "supabase_configured": bool(self.database.supabase_url and self.database.supabase_key),
+                "postgres_configured": bool(self.database.postgres_connection_string),
+            },
+            "memory_system": {
+                "enable_memory": self.memory_system.enable_memory,
+                "max_historical_signals": self.memory_system.max_historical_signals,
+                "memory_timeout_ms": self.memory_system.memory_timeout_ms,
+            },
+        }
 
 
 def load_config() -> EngineConfig:
@@ -89,21 +287,19 @@ def load_config() -> EngineConfig:
     Load configuration from environment variables.
     
     Returns:
-        EngineConfig with all settings loaded from environment
+        EngineConfig with all settings loaded and validated
         
     Raises:
-        ValueError: If required configuration is missing
+        ConfigurationError: If required configuration is missing or invalid
     """
-    # Validate required fields
-    required_vars = {
-        "DIGITALOCEAN_INFERENCE_KEY": os.getenv("DIGITALOCEAN_INFERENCE_KEY"),
-        "POLYMARKET_GAMMA_API_URL": os.getenv("POLYMARKET_GAMMA_API_URL", "https://gamma-api.polymarket.com"),
-        "POLYMARKET_CLOB_API_URL": os.getenv("POLYMARKET_CLOB_API_URL", "https://clob.polymarket.com"),
-    }
-    
-    missing = [key for key, value in required_vars.items() if not value]
-    if missing:
-        raise ValueError(f"Missing required configuration: {', '.join(missing)}")
+    # Check for critical required environment variables first
+    api_key = os.getenv("DIGITALOCEAN_INFERENCE_KEY")
+    if not api_key:
+        raise ConfigurationError(
+            "Missing required configuration: DIGITALOCEAN_INFERENCE_KEY\n"
+            "  This is required for Gradient AI LLM access.\n"
+            "  Please set it in your .env file or environment variables."
+        )
     
     # Polymarket configuration
     polymarket = PolymarketConfig(
@@ -119,17 +315,37 @@ def load_config() -> EngineConfig:
     )
     
     # LLM configuration
+    try:
+        temperature = float(os.getenv("LLM_TEMPERATURE", "0.7"))
+        max_tokens = int(os.getenv("LLM_MAX_TOKENS", "2000"))
+        timeout_ms = int(os.getenv("LLM_TIMEOUT_MS", "30000"))
+    except ValueError as e:
+        raise ConfigurationError(
+            f"Invalid numeric configuration value: {e}\n"
+            "  Please check LLM_TEMPERATURE, LLM_MAX_TOKENS, and LLM_TIMEOUT_MS"
+        )
+    
     llm = LLMConfig(
         model_name=os.getenv("LLM_MODEL_NAME", "llama-3.3-70b-instruct"),
-        temperature=float(os.getenv("LLM_TEMPERATURE", "0.7")),
-        max_tokens=int(os.getenv("LLM_MAX_TOKENS", "2000")),
-        timeout_ms=int(os.getenv("LLM_TIMEOUT_MS", "30000"))
+        temperature=temperature,
+        max_tokens=max_tokens,
+        timeout_ms=timeout_ms,
+        api_key=api_key
     )
     
     # Agent configuration
+    try:
+        agent_timeout = int(os.getenv("AGENT_TIMEOUT_MS", "45000"))
+        max_retries = int(os.getenv("AGENT_MAX_RETRIES", "3"))
+    except ValueError as e:
+        raise ConfigurationError(
+            f"Invalid numeric configuration value: {e}\n"
+            "  Please check AGENT_TIMEOUT_MS and AGENT_MAX_RETRIES"
+        )
+    
     agents = AgentConfig(
-        timeout_ms=int(os.getenv("AGENT_TIMEOUT_MS", "45000")),
-        max_retries=int(os.getenv("AGENT_MAX_RETRIES", "3")),
+        timeout_ms=agent_timeout,
+        max_retries=max_retries,
         enable_mvp_agents=os.getenv("ENABLE_MVP_AGENTS", "true").lower() == "true",
         enable_event_intelligence=os.getenv("ENABLE_EVENT_INTELLIGENCE", "true").lower() == "true",
         enable_polling_statistical=os.getenv("ENABLE_POLLING_STATISTICAL", "true").lower() == "true",
@@ -139,11 +355,22 @@ def load_config() -> EngineConfig:
     )
     
     # Consensus configuration
+    try:
+        min_agents = int(os.getenv("CONSENSUS_MIN_AGENTS", "3"))
+        disagreement_threshold = float(os.getenv("CONSENSUS_DISAGREEMENT_THRESHOLD", "0.15"))
+        confidence_band_multiplier = float(os.getenv("CONSENSUS_CONFIDENCE_BAND_MULTIPLIER", "1.96"))
+        min_edge_threshold = float(os.getenv("MIN_EDGE_THRESHOLD", "0.05"))
+    except ValueError as e:
+        raise ConfigurationError(
+            f"Invalid numeric configuration value: {e}\n"
+            "  Please check consensus configuration values"
+        )
+    
     consensus = ConsensusConfig(
-        min_agents_required=int(os.getenv("CONSENSUS_MIN_AGENTS", "3")),
-        disagreement_threshold=float(os.getenv("CONSENSUS_DISAGREEMENT_THRESHOLD", "0.15")),
-        confidence_band_multiplier=float(os.getenv("CONSENSUS_CONFIDENCE_BAND_MULTIPLIER", "1.96")),
-        min_edge_threshold=float(os.getenv("MIN_EDGE_THRESHOLD", "0.05"))
+        min_agents_required=min_agents,
+        disagreement_threshold=disagreement_threshold,
+        confidence_band_multiplier=confidence_band_multiplier,
+        min_edge_threshold=min_edge_threshold
     )
     
     # Database configuration
@@ -155,13 +382,23 @@ def load_config() -> EngineConfig:
     )
     
     # Memory system configuration
+    try:
+        max_historical = int(os.getenv("MAX_HISTORICAL_SIGNALS", "3"))
+        memory_timeout = int(os.getenv("MEMORY_TIMEOUT_MS", "5000"))
+    except ValueError as e:
+        raise ConfigurationError(
+            f"Invalid numeric configuration value: {e}\n"
+            "  Please check MAX_HISTORICAL_SIGNALS and MEMORY_TIMEOUT_MS"
+        )
+    
     memory_system = MemorySystemConfig(
         enable_memory=os.getenv("ENABLE_MEMORY", "true").lower() == "true",
-        max_historical_signals=int(os.getenv("MAX_HISTORICAL_SIGNALS", "3")),
-        memory_timeout_ms=int(os.getenv("MEMORY_TIMEOUT_MS", "5000"))
+        max_historical_signals=max_historical,
+        memory_timeout_ms=memory_timeout
     )
     
-    return EngineConfig(
+    # Create and validate configuration
+    config = EngineConfig(
         polymarket=polymarket,
         langgraph=langgraph,
         llm=llm,
@@ -170,3 +407,8 @@ def load_config() -> EngineConfig:
         database=database,
         memory_system=memory_system
     )
+    
+    # Validate all configuration
+    config.validate()
+    
+    return config

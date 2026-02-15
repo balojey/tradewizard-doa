@@ -64,12 +64,14 @@ def test_config_import():
         AgentConfig,
         DatabaseConfig,
         EngineConfig,
+        ConfigurationError,
     )
     assert PolymarketConfig is not None
     assert LLMConfig is not None
     assert AgentConfig is not None
     assert DatabaseConfig is not None
     assert EngineConfig is not None
+    assert ConfigurationError is not None
 
 
 def test_pydantic_models_validation():
