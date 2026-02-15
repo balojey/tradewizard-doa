@@ -13,8 +13,8 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
   - Set up requirements.txt with core dependencies (langgraph, langchain-gradient, pydantic, httpx, supabase, opik, click, pytest, hypothesis)
   - _Requirements: 1.5, 12.2, 12.3_
 
-- [ ] 2. Implement core data models
-  - [ ] 2.1 Create Pydantic models in models/types.py
+- [x] 2. Implement core data models
+  - [x] 2.1 Create Pydantic models in models/types.py
     - Implement MarketBriefingDocument, AgentSignal, Thesis, DebateRecord, ConsensusProbability, TradeRecommendation
     - Implement error types: IngestionError, AgentError, RecommendationError
     - Implement supporting types: EventContext, StreamlinedEventMetadata, TradeExplanation, TradeMetadata
@@ -24,13 +24,13 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - **Property 3: Agent Signal Structure Validation**
     - **Validates: Requirements 3.8**
   
-  - [ ] 2.3 Create LangGraph state definition in models/state.py
+  - [x] 2.3 Create LangGraph state definition in models/state.py
     - Implement GraphState TypedDict with all state fields
     - Add Annotated reducers for agent_signals, agent_errors, audit_log
     - _Requirements: 1.2, 1.3_
 
-- [ ] 3. Implement Polymarket integration
-  - [ ] 3.1 Create Polymarket client in tools/polymarket_client.py
+- [x] 3. Implement Polymarket integration
+  - [x] 3.1 Create Polymarket client in tools/polymarket_client.py
     - Implement PolymarketClient class with fetch_market_data and fetch_event_data methods
     - Implement transform_to_mbd function to convert API responses to MarketBriefingDocument
     - Implement error handling with structured IngestionError types
