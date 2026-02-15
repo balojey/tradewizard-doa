@@ -185,13 +185,13 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - Create agents/mean_reversion.py
     - _Requirements: 3.5, 3.9_
 
-- [ ] 13. Implement Event Scenario agents
-  - [ ] 13.1 Create Event Scenario prompts in prompts.py
+- [x] 13. Implement Event Scenario agents
+  - [x] 13.1 Create Event Scenario prompts in prompts.py
     - Write CATALYST_PROMPT
     - Write TAIL_RISK_PROMPT
     - _Requirements: 3.6_
   
-  - [ ] 13.2 Create Event Scenario agent modules
+  - [x] 13.2 Create Event Scenario agent modules
     - Create agents/catalyst.py
     - Create agents/tail_risk.py
     - _Requirements: 3.6, 3.9_
