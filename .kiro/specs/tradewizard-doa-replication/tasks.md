@@ -196,7 +196,7 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - Create agents/tail_risk.py
     - _Requirements: 3.6, 3.9_
 
-- [ ] 14. Checkpoint - Ensure all agent tests pass
+- [x] 14. Checkpoint - Ensure all agent tests pass
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 15. Implement workflow nodes
