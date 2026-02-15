@@ -139,13 +139,13 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - Test error handling
     - _Requirements: 3.8_
 
-- [ ] 9. Implement Event Intelligence agents
-  - [ ] 9.1 Create Event Intelligence prompts in prompts.py
+- [x] 9. Implement Event Intelligence agents
+  - [x] 9.1 Create Event Intelligence prompts in prompts.py
     - Write BREAKING_NEWS_PROMPT
     - Write EVENT_IMPACT_PROMPT
     - _Requirements: 3.2_
   
-  - [ ] 9.2 Create Event Intelligence agent modules
+  - [x] 9.2 Create Event Intelligence agent modules
     - Create agents/breaking_news.py
     - Create agents/event_impact.py
     - _Requirements: 3.2, 3.9_
