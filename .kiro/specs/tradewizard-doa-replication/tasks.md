@@ -161,14 +161,14 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - Create agents/historical_pattern.py
     - _Requirements: 3.3, 3.9_
 
-- [ ] 11. Implement Sentiment & Narrative agents
-  - [ ] 11.1 Create Sentiment & Narrative prompts in prompts.py
+- [x] 11. Implement Sentiment & Narrative agents
+  - [x] 11.1 Create Sentiment & Narrative prompts in prompts.py
     - Write MEDIA_SENTIMENT_PROMPT
     - Write SOCIAL_SENTIMENT_PROMPT
     - Write NARRATIVE_VELOCITY_PROMPT
     - _Requirements: 3.4_
   
-  - [ ] 11.2 Create Sentiment & Narrative agent modules
+  - [x] 11.2 Create Sentiment & Narrative agent modules
     - Create agents/media_sentiment.py
     - Create agents/social_sentiment.py
     - Create agents/narrative_velocity.py
