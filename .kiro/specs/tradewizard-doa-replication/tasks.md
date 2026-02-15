@@ -234,12 +234,12 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - **Property 25: Agent Failure Isolation**
     - **Validates: Requirements 13.2**
 
-- [ ] 16. Implement debate protocol nodes
-  - [ ] 16.1 Create thesis construction prompts in prompts.py
+- [x] 16. Implement debate protocol nodes
+  - [x] 16.1 Create thesis construction prompts in prompts.py
     - Write THESIS_CONSTRUCTION_PROMPT
     - _Requirements: 9.1_
   
-  - [ ] 16.2 Create thesis construction node in nodes/thesis_construction.py
+  - [x] 16.2 Create thesis construction node in nodes/thesis_construction.py
     - Implement thesis_construction_node that builds bull and bear theses
     - Aggregate supporting signals for each thesis
     - Calculate edge (|fair_probability - market_probability|)
@@ -249,11 +249,11 @@ This implementation plan breaks down the replication of TradeWizard's multi-agen
     - **Property 12: Thesis Construction**
     - **Validates: Requirements 9.1**
   
-  - [ ] 16.4 Create cross-examination prompts in prompts.py
+  - [x] 16.4 Create cross-examination prompts in prompts.py
     - Write CROSS_EXAMINATION_PROMPT
     - _Requirements: 9.2_
   
-  - [ ] 16.5 Create cross-examination node in nodes/cross_examination.py
+  - [x] 16.5 Create cross-examination node in nodes/cross_examination.py
     - Implement cross_examination_node that tests theses
     - Execute all five test types: evidence, causality, timing, liquidity, tail-risk
     - Score each thesis based on test outcomes
