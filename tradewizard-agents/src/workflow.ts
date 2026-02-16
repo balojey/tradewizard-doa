@@ -22,7 +22,6 @@ import {
   createKeywordExtractionNode,
   createMemoryRetrievalNode,
   createAgentNodes,
-  createAdvancedPollingAgentNode,
   createThesisConstructionNode,
   createCrossExaminationNode,
   createConsensusEngineNode,
@@ -63,30 +62,17 @@ export async function createWorkflow(
   existingOpikHandler?: any
 ) {
   // Create data integration layer for external data sources
-  // Filter out 'newsdata' provider as it's handled separately by enhanced agents
-  const legacyExternalDataConfig = {
+  // Note: 'newsdata' provider is handled by autonomous agents, not the legacy data layer
+  const dataLayerConfig = {
     ...config.externalData,
     news: {
       ...config.externalData.news,
-      provider: config.externalData.news.provider === 'newsdata' ? 'none' : config.externalData.news.provider,
+      provider: config.externalData.news.provider === 'newsdata' 
+        ? 'none' as const
+        : config.externalData.news.provider,
     },
   };
-  const dataLayer = createDataIntegrationLayer(legacyExternalDataConfig);
-
-  // Create enhanced agent factory for NewsData.io integration
-  let enhancedAgentFactory;
-  let useEnhancedAgents = false;
-  
-  if (process.env.NEWSDATA_INTEGRATION_ENABLED === 'true') {
-    try {
-      const { createEnhancedAgentFactory } = await import('./utils/enhanced-agent-factory.js');
-      enhancedAgentFactory = createEnhancedAgentFactory(config);
-      useEnhancedAgents = true;
-      console.log('[Workflow] NewsData.io integration enabled - using enhanced agents');
-    } catch (error) {
-      console.warn('[Workflow] Enhanced agent factory not available, using standard agents:', error);
-    }
-  }
+  const dataLayer = createDataIntegrationLayer(dataLayerConfig);
 
   // Create all node functions
   const marketIngestion = createMarketIngestionNode(polymarketClient);
@@ -133,13 +119,8 @@ export async function createWorkflow(
     });
   }
   
-  // Create agents (enhanced or standard based on configuration)
-  let agents;
-  let breakingNewsAgent;
-  let mediaSentimentAgent;
-  
-  // Always use standard agents (enhanced agents removed as part of cleanup)
-  agents = createAgentNodes(config);
+  // Create agents using standard agent nodes
+  const agents = createAgentNodes(config);
   
   const thesisConstruction = createThesisConstructionNode(config);
   const crossExamination = createCrossExaminationNode(config);
