@@ -526,6 +526,9 @@ async def analyze_market(
             logger.warning("No recommendation generated")
         
         # Save results to database if persistence is enabled
+        # NOTE: When this workflow is deployed as a remote service and called by the monitor,
+        # the workflow service handles its own persistence. The monitor will NOT save data
+        # again to avoid duplication (see monitor-service.ts analyzeMarket method).
         if config.database.enable_persistence and mbd:
             try:
                 from database.supabase_client import SupabaseClient
@@ -634,31 +637,29 @@ async def main(input: Dict, context: Dict) -> Dict:
     
     Args:
         input: Dictionary containing:
-            - condition_id: Polymarket condition ID to analyze (required)
-            - thread_id: Session ID for resuming analysis (optional)
+            - condition_id or conditionId: Polymarket condition ID to analyze (required)
+            - thread_id or threadId: Session ID for resuming analysis (optional)
         context: Execution context from Gradient ADK
         
     Returns:
         Dictionary containing:
-            - thread_id: Session ID for tracking
-            - status: Analysis status
             - recommendation: Trade recommendation (when complete)
-            - agent_signals: Individual agent analysis results
-            - agent_errors: Any errors encountered
-            - analysis_timestamp: Unix timestamp of analysis
+            - agentSignals: Individual agent analysis results
+            - cost: Analysis cost
+            - _metadata: Additional metadata (thread_id, status, etc.)
     """
-    # Extract inputs
-    condition_id = input.get("condition_id", "")
-    thread_id = input.get("thread_id", "")
+    # Extract inputs (support both snake_case and camelCase)
+    condition_id = input.get("condition_id") or input.get("conditionId", "")
+    thread_id = input.get("thread_id") or input.get("threadId", "")
     
     logger.info(f"Request received - condition_id: {condition_id}, thread_id: {thread_id or 'new'}")
     
     if not condition_id:
         return {
-            "error": "Please provide a 'condition_id' field with the Polymarket condition ID to analyze.",
+            "error": "Please provide a 'condition_id' or 'conditionId' field with the Polymarket condition ID to analyze.",
             "usage": {
-                "analyze": {"condition_id": "0xabc123..."},
-                "resume": {"condition_id": "0xabc123...", "thread_id": "session-id"}
+                "analyze": {"conditionId": "0xabc123..."},
+                "resume": {"conditionId": "0xabc123...", "threadId": "session-id"}
             }
         }
     
@@ -675,50 +676,83 @@ async def main(input: Dict, context: Dict) -> Dict:
         logger.info(f"Starting market analysis for condition_id: {condition_id}")
         result = await analyze_market(condition_id, config, thread_id)
         
-        # Format response
+        # Format response for monitor service compatibility
+        # The monitor expects: { recommendation, agentSignals, cost }
+        # Note: The Python workflow already persists data to Supabase, so the monitor
+        # should NOT save this data again to avoid duplication
         response = {
-            "thread_id": thread_id,
-            "condition_id": condition_id,
-            "status": "complete",
-            "analysis_timestamp": result.analysis_timestamp
+            "recommendation": None,
+            "agentSignals": [],
+            "cost": 0.0,  # TODO: Calculate actual LLM cost
+            # Additional metadata for debugging/monitoring
+            "_metadata": {
+                "thread_id": thread_id,
+                "condition_id": condition_id,
+                "status": "complete",
+                "analysis_timestamp": result.analysis_timestamp,
+                "agent_count": len(result.agent_signals),
+                "agent_errors": len(result.agent_errors)
+            }
         }
         
-        # Add recommendation if available
+        # Add recommendation if available (convert to dict for JSON serialization)
         if result.recommendation:
             response["recommendation"] = {
+                "marketId": result.recommendation.market_id,
+                "conditionId": result.recommendation.condition_id,
                 "action": result.recommendation.action,
-                "entry_zone": result.recommendation.entry_zone,
-                "target_zone": result.recommendation.target_zone,
-                "expected_value": result.recommendation.expected_value,
-                "win_probability": result.recommendation.win_probability,
-                "liquidity_risk": result.recommendation.liquidity_risk,
+                "entryZone": result.recommendation.entry_zone,
+                "targetZone": result.recommendation.target_zone,
+                "expectedValue": result.recommendation.expected_value,
+                "winProbability": result.recommendation.win_probability,
+                "liquidityRisk": result.recommendation.liquidity_risk,
                 "explanation": {
                     "summary": result.recommendation.explanation.summary,
-                    "core_thesis": result.recommendation.explanation.core_thesis,
-                    "key_catalysts": result.recommendation.explanation.key_catalysts,
-                    "failure_scenarios": result.recommendation.explanation.failure_scenarios
+                    "coreThesis": result.recommendation.explanation.core_thesis,
+                    "keyCatalysts": result.recommendation.explanation.key_catalysts,
+                    "failureScenarios": result.recommendation.explanation.failure_scenarios
+                },
+                "metadata": {
+                    "consensusProbability": result.recommendation.metadata.consensus_probability,
+                    "marketProbability": result.recommendation.metadata.market_probability,
+                    "edge": result.recommendation.metadata.edge,
+                    "confidenceBand": result.recommendation.metadata.confidence_band,
+                    "disagreementIndex": result.recommendation.metadata.disagreement_index,
+                    "regime": result.recommendation.metadata.regime,
+                    "analysisTimestamp": result.recommendation.metadata.analysis_timestamp,
+                    "agentCount": result.recommendation.metadata.agent_count
                 }
             }
+            response["_metadata"]["status"] = "complete"
         else:
-            response["recommendation"] = None
-            response["status"] = "no_recommendation"
+            response["_metadata"]["status"] = "no_recommendation"
         
-        # Add agent signals
-        response["agent_signals"] = [
+        # Add agent signals (convert to camelCase for TypeScript compatibility)
+        response["agentSignals"] = [
             {
-                "agent_name": signal.agent_name,
-                "direction": signal.direction,
-                "fair_probability": signal.fair_probability,
+                "agentName": signal.agent_name,
+                "timestamp": signal.timestamp,
                 "confidence": signal.confidence,
-                "key_drivers": signal.key_drivers,
-                "risk_factors": signal.risk_factors
+                "direction": signal.direction,
+                "fairProbability": signal.fair_probability,
+                "keyDrivers": signal.key_drivers,
+                "riskFactors": signal.risk_factors,
+                "metadata": signal.metadata
             }
             for signal in result.agent_signals
         ]
         
-        # Add agent errors if any
+        # Add consensus to metadata if available
+        if result.consensus:
+            response["_metadata"]["consensus"] = {
+                "consensus_probability": result.consensus.consensus_probability,
+                "confidence_level": result.consensus.regime,
+                "agreement_score": 1.0 - result.consensus.disagreement_index
+            }
+        
+        # Add agent errors to metadata if any
         if result.agent_errors:
-            response["agent_errors"] = [
+            response["_metadata"]["agent_errors"] = [
                 {
                     "agent_name": error.agent_name,
                     "type": error.type,
@@ -727,32 +761,34 @@ async def main(input: Dict, context: Dict) -> Dict:
                 for error in result.agent_errors
             ]
         
-        # Add consensus if available
-        if result.consensus:
-            response["consensus"] = {
-                "consensus_probability": result.consensus.consensus_probability,
-                "confidence_level": result.consensus.regime,
-                "agreement_score": 1.0 - result.consensus.disagreement_index
-            }
-        
-        logger.info(f"Analysis complete - status: {response['status']}")
+        logger.info(f"Analysis complete - status: {response['_metadata']['status']}")
         return response
         
     except ValueError as e:
         logger.error(f"Validation error: {e}")
         return {
-            "thread_id": thread_id,
-            "condition_id": condition_id,
-            "status": "error",
-            "error": str(e),
-            "error_type": "validation_error"
+            "recommendation": None,
+            "agentSignals": [],
+            "cost": 0.0,
+            "_metadata": {
+                "thread_id": thread_id,
+                "condition_id": condition_id,
+                "status": "error",
+                "error": str(e),
+                "error_type": "validation_error"
+            }
         }
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
         return {
-            "thread_id": thread_id,
-            "condition_id": condition_id,
-            "status": "error",
-            "error": str(e),
-            "error_type": "execution_error"
+            "recommendation": None,
+            "agentSignals": [],
+            "cost": 0.0,
+            "_metadata": {
+                "thread_id": thread_id,
+                "condition_id": condition_id,
+                "status": "error",
+                "error": str(e),
+                "error_type": "execution_error"
+            }
         }

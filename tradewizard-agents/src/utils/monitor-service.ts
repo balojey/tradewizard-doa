@@ -278,8 +278,13 @@ export class AutomatedMarketMonitor implements MonitorService {
       // Extract agent signals and cost from analysis result
       const { recommendation, agentSignals, cost = 0 } = analysisResult;
 
-      // Store results in database
-      await this.storeAnalysisResults(conditionId, recommendation, agentSignals, cost, startTime);
+      // Store results in database ONLY if using local workflow execution
+      // When using remote workflow service, it handles its own persistence
+      if (!this.config.workflowService?.url) {
+        await this.storeAnalysisResults(conditionId, recommendation, agentSignals, cost, startTime);
+      } else {
+        console.log('[MonitorService] Skipping database persistence - workflow service handles its own persistence');
+      }
 
       // Update last analysis time
       this.lastAnalysisTime = new Date();
