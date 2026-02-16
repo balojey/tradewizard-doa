@@ -73,11 +73,12 @@ def create_autonomous_agent(
         >>> result = await agent.ainvoke({"messages": [("user", "Analyze this market")]})
     """
     # Create ReAct agent using LangGraph (Requirement 5.1, 5.2)
-    # The state_modifier parameter sets the system prompt
+    # Bind the system prompt to the model before creating the agent
+    llm_with_system = llm.bind(system=system_prompt)
+    
     agent = create_react_agent(
-        model=llm,
-        tools=tools,
-        state_modifier=system_prompt
+        model=llm_with_system,
+        tools=tools
     )
     
     # Set recursion limit to prevent infinite loops (Requirement 5.5)
@@ -132,10 +133,10 @@ def create_autonomous_agent_node(
         ... )
         >>> state_update = await node(state)
     """
-    from utils.llm_factory import create_llm
+    from utils.llm_factory import create_llm_instance
     
     # Create LLM instance from config
-    llm = create_llm(config.llm)
+    llm = create_llm_instance(config.llm)
     
     # Get timeout from config (default to 45 seconds)
     timeout_seconds = config.agents.timeout_ms / 1000.0
@@ -200,14 +201,21 @@ Event Type: {mbd.event_type}
 Resolution Criteria: {mbd.resolution_criteria}
 Expiry: {mbd.expiry_timestamp}
 
-Provide your analysis with:
-1. Direction (YES/NO/NEUTRAL)
-2. Fair probability estimate (0.0-1.0)
-3. Confidence level (0.0-1.0)
-4. Key drivers (3-5 factors)
-5. Risk factors (potential issues)
-
 Use the available tools to gather relevant data before making your assessment.
+
+After your analysis, provide your final assessment in JSON format:
+
+```json
+{{
+  "direction": "YES|NO|NEUTRAL",
+  "fair_probability": 0.0-1.0,
+  "confidence": 0.0-1.0,
+  "key_drivers": ["driver1", "driver2", "driver3"],
+  "risk_factors": ["risk1", "risk2", "risk3"]
+}}
+```
+
+IMPORTANT: Your final message MUST include this JSON structure.
 """
         
         try:
@@ -318,6 +326,12 @@ def _parse_agent_output(
     Returns:
         AgentSignal with parsed information
     """
+    import json
+    import re
+    import logging
+    
+    logger = logging.getLogger("TradeWizard")
+    
     # Get final message from agent
     messages = result.get("messages", [])
     if not messages:
@@ -328,8 +342,62 @@ def _parse_agent_output(
     last_message = messages[-1]
     content = last_message.content if hasattr(last_message, 'content') else str(last_message)
     
-    # Try to parse structured output
-    # Look for key patterns in the output
+    # Try to extract JSON from the content
+    # Look for JSON in markdown code blocks or plain text
+    json_data = None
+    
+    # Pattern 1: JSON in markdown code block
+    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', content, re.DOTALL)
+    if json_match:
+        try:
+            json_data = json.loads(json_match.group(1))
+        except json.JSONDecodeError as e:
+            logger.warning(f"Failed to parse JSON from code block: {e}")
+    
+    # Pattern 2: JSON in plain text
+    if not json_data:
+        json_match = re.search(r'\{[^{}]*"direction"[^{}]*\}', content, re.DOTALL)
+        if json_match:
+            try:
+                json_data = json.loads(json_match.group(0))
+            except json.JSONDecodeError as e:
+                logger.warning(f"Failed to parse JSON from plain text: {e}")
+    
+    # If we successfully parsed JSON, use it
+    if json_data:
+        try:
+            direction = json_data.get("direction", "NEUTRAL").upper()
+            fair_probability = float(json_data.get("fair_probability", mbd.current_probability))
+            confidence = float(json_data.get("confidence", 0.6))
+            key_drivers = json_data.get("key_drivers", ["Analysis based on available data"])
+            risk_factors = json_data.get("risk_factors", ["Standard market risks apply"])
+            
+            # Validate and clamp values
+            fair_probability = max(0.0, min(1.0, fair_probability))
+            confidence = max(0.0, min(1.0, confidence))
+            
+            # Ensure lists
+            if not isinstance(key_drivers, list):
+                key_drivers = [str(key_drivers)]
+            if not isinstance(risk_factors, list):
+                risk_factors = [str(risk_factors)]
+            
+            # Create AgentSignal
+            return AgentSignal(
+                agent_name=agent_name,
+                timestamp=int(start_time),
+                confidence=confidence,
+                direction=direction,
+                fair_probability=fair_probability,
+                key_drivers=key_drivers[:5],  # Limit to 5
+                risk_factors=risk_factors[:5],  # Limit to 5
+                metadata={}
+            )
+        except Exception as e:
+            logger.warning(f"Failed to parse structured JSON data: {e}")
+    
+    # Fallback to text parsing if JSON parsing failed
+    logger.info(f"Falling back to text parsing for {agent_name}")
     direction = _extract_direction(content)
     fair_probability = _extract_probability(content, mbd.current_probability)
     confidence = _extract_confidence(content)

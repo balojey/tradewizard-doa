@@ -6,6 +6,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from models.state import GraphState
 from models.types import (
+    AgentSignal,
     AuditEntry,
     ConsensusProbability,
     MarketBriefingDocument,
@@ -304,10 +305,18 @@ def generate_explanation(
     Returns:
         TradeExplanation object
     """
-    agent_signals = state.get("agent_signals", [])
+    agent_signals_raw = state.get("agent_signals", [])
     debate_record = state.get("debate_record")
     bull_thesis = state.get("bull_thesis")
     bear_thesis = state.get("bear_thesis")
+    
+    # Convert dictionaries to AgentSignal objects if needed
+    agent_signals = []
+    for signal in agent_signals_raw:
+        if isinstance(signal, dict):
+            agent_signals.append(AgentSignal(**signal))
+        else:
+            agent_signals.append(signal)
     
     # Generate summary
     if action == "NO_TRADE":

@@ -339,8 +339,16 @@ async def thesis_construction_node(
     start_time = time.time()
     
     # Extract required data from state
-    agent_signals = state.get("agent_signals", [])
+    agent_signals_raw = state.get("agent_signals", [])
     mbd = state.get("mbd")
+    
+    # Convert dictionaries to AgentSignal objects if needed
+    agent_signals = []
+    for signal in agent_signals_raw:
+        if isinstance(signal, dict):
+            agent_signals.append(AgentSignal(**signal))
+        else:
+            agent_signals.append(signal)
     
     # Validate inputs
     if not agent_signals:

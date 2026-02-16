@@ -19,8 +19,10 @@ Gradient AI Platform.
 import asyncio
 import logging
 import time
+import uuid
 from typing import Any, Dict, List, Optional
 
+from gradient_adk import entrypoint
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langgraph.checkpoint.memory import MemorySaver
@@ -321,7 +323,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     # Recommendation generation node
     workflow.add_node(
         "recommendation_generation",
-        create_recommendation_generation_node(config, persistence_layer)
+        create_recommendation_generation_node(config)
     )
     
     # ========================================================================
@@ -417,7 +419,8 @@ def create_checkpointer(config: EngineConfig):
 
 async def analyze_market(
     condition_id: str,
-    config: Optional[EngineConfig] = None
+    config: Optional[EngineConfig] = None,
+    thread_id: Optional[str] = None
 ) -> AnalysisResult:
     """
     Analyze a prediction market and generate trade recommendation.
@@ -430,6 +433,7 @@ async def analyze_market(
     Args:
         condition_id: Polymarket condition ID to analyze
         config: Engine configuration (loads from env if not provided)
+        thread_id: Thread ID for checkpointing (optional)
         
     Returns:
         AnalysisResult with recommendation, agent signals, and audit log
@@ -454,10 +458,15 @@ async def analyze_market(
     if config is None:
         config = load_config()
     
+    # Generate thread_id if not provided
+    if thread_id is None:
+        thread_id = str(uuid.uuid4())[:8]
+    
     logger.info("=" * 80)
     logger.info("TRADEWIZARD MARKET ANALYSIS")
     logger.info("=" * 80)
     logger.info(f"Condition ID: {condition_id}")
+    logger.info(f"Thread ID: {thread_id}")
     logger.info(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
     
     try:
@@ -481,10 +490,13 @@ async def analyze_market(
             "memory_context": {}
         }
         
+        # Create config for graph invocation with thread_id
+        graph_config = {"configurable": {"thread_id": thread_id}}
+        
         # Invoke graph
         logger.info("Starting workflow execution...")
         
-        final_state = await graph.ainvoke(initial_state)
+        final_state = await graph.ainvoke(initial_state, graph_config)
         
         duration_s = time.time() - start_time
         
@@ -502,6 +514,7 @@ async def analyze_market(
         consensus = final_state.get("consensus")
         debate_record = final_state.get("debate_record")
         audit_log = final_state.get("audit_log", [])
+        mbd = final_state.get("mbd")
         
         # Log recommendation
         if recommendation:
@@ -511,6 +524,79 @@ async def analyze_market(
             logger.info(f"  Win Probability: {recommendation.win_probability:.1%}")
         else:
             logger.warning("No recommendation generated")
+        
+        # Save results to database if persistence is enabled
+        if config.database.enable_persistence and mbd:
+            try:
+                from database.supabase_client import SupabaseClient
+                from database.persistence import PersistenceLayer
+                from models.types import AgentSignal
+                
+                logger.info("Saving analysis results to Supabase...")
+                
+                # Initialize persistence layer
+                supabase_client = SupabaseClient(config.database)
+                persistence = PersistenceLayer(supabase_client)
+                
+                # Convert agent_signals from dicts to AgentSignal objects if needed
+                signal_objects = []
+                for signal in agent_signals:
+                    if isinstance(signal, dict):
+                        signal_objects.append(AgentSignal(**signal))
+                    else:
+                        signal_objects.append(signal)
+                
+                # Save market data and get market_id
+                market_result = await persistence.save_market_data(mbd)
+                if market_result.is_ok():
+                    market_id = market_result.unwrap()
+                    logger.info(f"Saved market data for condition_id: {condition_id}, market_id: {market_id}")
+                    
+                    # Save recommendation and get recommendation_id
+                    recommendation_id = None
+                    if recommendation:
+                        rec_result = await persistence.save_recommendation(recommendation, market_id)
+                        if rec_result.is_ok():
+                            recommendation_id = rec_result.unwrap()
+                            logger.info(f"Saved recommendation: {recommendation.action}, recommendation_id: {recommendation_id}")
+                        else:
+                            logger.warning(f"Failed to save recommendation: {rec_result.error}")
+                    
+                    # Save agent signals
+                    if signal_objects:
+                        signals_result = await persistence.save_agent_signals(
+                            condition_id=condition_id,
+                            market_id=market_id,
+                            recommendation_id=recommendation_id,
+                            signals=signal_objects
+                        )
+                        if signals_result.is_ok():
+                            logger.info(f"Saved {len(signal_objects)} agent signals")
+                        else:
+                            logger.warning(f"Failed to save agent signals: {signals_result.error}")
+                    
+                    # Save analysis history
+                    history_result = await persistence.save_analysis_history(
+                        condition_id=final_state.get("condition_id"),
+                        market_id=market_id,
+                        analysis_timestamp=int(time.time()),
+                        agent_count=len(signal_objects),
+                        consensus=consensus,
+                        recommendation_action=recommendation.action if recommendation else "NO_TRADE",
+                        duration_ms=int(duration_s * 1000),
+                        cost_usd=0.0,  # TODO: Calculate actual cost
+                        status="success"
+                    )
+                    if history_result.is_ok():
+                        logger.info("Saved analysis history")
+                    else:
+                        logger.warning(f"Failed to save analysis history: {history_result.error}")
+                else:
+                    logger.warning(f"Failed to save market data: {market_result.error}")
+                
+            except Exception as e:
+                logger.error(f"Failed to save results to database: {e}", exc_info=True)
+                logger.warning("Continuing without persistence")
         
         # Create analysis result
         result = AnalysisResult(
@@ -535,66 +621,138 @@ async def analyze_market(
 
 
 # ============================================================================
-# CLI ENTRY POINT (for testing)
+# GRADIENT ADK ENTRYPOINT
 # ============================================================================
 
-async def main():
+@entrypoint
+async def main(input: Dict, context: Dict) -> Dict:
     """
-    CLI entry point for testing market analysis.
+    TradeWizard Market Analysis entrypoint for Digital Ocean Gradient ADK.
     
-    Usage:
-        python main.py [condition_id]
+    This agent analyzes prediction markets on Polymarket using a multi-agent
+    workflow and generates trade recommendations.
+    
+    Args:
+        input: Dictionary containing:
+            - condition_id: Polymarket condition ID to analyze (required)
+            - thread_id: Session ID for resuming analysis (optional)
+        context: Execution context from Gradient ADK
+        
+    Returns:
+        Dictionary containing:
+            - thread_id: Session ID for tracking
+            - status: Analysis status
+            - recommendation: Trade recommendation (when complete)
+            - agent_signals: Individual agent analysis results
+            - agent_errors: Any errors encountered
+            - analysis_timestamp: Unix timestamp of analysis
     """
-    import sys
+    # Extract inputs
+    condition_id = input.get("condition_id", "")
+    thread_id = input.get("thread_id", "")
     
-    # Get condition_id from command line or use default
-    if len(sys.argv) > 1:
-        condition_id = sys.argv[1]
-    else:
-        # Default test condition ID
-        condition_id = "0x0e7c1d14b2f1cc1b0e0f8e5e5e5e5e5e5e5e5e5e"
-        logger.info(f"No condition_id provided, using test ID: {condition_id}")
+    logger.info(f"Request received - condition_id: {condition_id}, thread_id: {thread_id or 'new'}")
+    
+    if not condition_id:
+        return {
+            "error": "Please provide a 'condition_id' field with the Polymarket condition ID to analyze.",
+            "usage": {
+                "analyze": {"condition_id": "0xabc123..."},
+                "resume": {"condition_id": "0xabc123...", "thread_id": "session-id"}
+            }
+        }
+    
+    # Generate thread_id if not provided
+    if not thread_id:
+        import uuid
+        thread_id = str(uuid.uuid4())[:8]
     
     try:
         # Load configuration
         config = load_config()
         
         # Run analysis
-        result = await analyze_market(condition_id, config)
+        logger.info(f"Starting market analysis for condition_id: {condition_id}")
+        result = await analyze_market(condition_id, config, thread_id)
         
-        # Print results
-        print("\n" + "=" * 80)
-        print("ANALYSIS RESULTS")
-        print("=" * 80)
+        # Format response
+        response = {
+            "thread_id": thread_id,
+            "condition_id": condition_id,
+            "status": "complete",
+            "analysis_timestamp": result.analysis_timestamp
+        }
         
+        # Add recommendation if available
         if result.recommendation:
-            print(f"\nAction: {result.recommendation.action}")
-            print(f"Entry Zone: {result.recommendation.entry_zone}")
-            print(f"Target Zone: {result.recommendation.target_zone}")
-            print(f"Expected Value: ${result.recommendation.expected_value:.2f}")
-            print(f"Win Probability: {result.recommendation.win_probability:.1%}")
-            print(f"Liquidity Risk: {result.recommendation.liquidity_risk}")
-            print(f"\nExplanation:")
-            print(f"  {result.recommendation.explanation.summary}")
+            response["recommendation"] = {
+                "action": result.recommendation.action,
+                "entry_zone": result.recommendation.entry_zone,
+                "target_zone": result.recommendation.target_zone,
+                "expected_value": result.recommendation.expected_value,
+                "win_probability": result.recommendation.win_probability,
+                "liquidity_risk": result.recommendation.liquidity_risk,
+                "explanation": {
+                    "summary": result.recommendation.explanation.summary,
+                    "core_thesis": result.recommendation.explanation.core_thesis,
+                    "key_catalysts": result.recommendation.explanation.key_catalysts,
+                    "failure_scenarios": result.recommendation.explanation.failure_scenarios
+                }
+            }
         else:
-            print("\nNo recommendation generated")
+            response["recommendation"] = None
+            response["status"] = "no_recommendation"
         
-        print(f"\nAgent Signals: {len(result.agent_signals)}")
-        for signal in result.agent_signals:
-            print(f"  - {signal.agent_name}: {signal.direction} "
-                  f"(prob={signal.fair_probability:.2%}, conf={signal.confidence:.2%})")
+        # Add agent signals
+        response["agent_signals"] = [
+            {
+                "agent_name": signal.agent_name,
+                "direction": signal.direction,
+                "fair_probability": signal.fair_probability,
+                "confidence": signal.confidence,
+                "key_drivers": signal.key_drivers,
+                "risk_factors": signal.risk_factors
+            }
+            for signal in result.agent_signals
+        ]
         
+        # Add agent errors if any
         if result.agent_errors:
-            print(f"\nAgent Errors: {len(result.agent_errors)}")
-            for error in result.agent_errors:
-                print(f"  - {error.agent_name}: {error.type} - {error.message}")
+            response["agent_errors"] = [
+                {
+                    "agent_name": error.agent_name,
+                    "type": error.type,
+                    "message": error.message
+                }
+                for error in result.agent_errors
+            ]
         
-        print("\n" + "=" * 80)
+        # Add consensus if available
+        if result.consensus:
+            response["consensus"] = {
+                "consensus_probability": result.consensus.consensus_probability,
+                "confidence_level": result.consensus.regime,
+                "agreement_score": 1.0 - result.consensus.disagreement_index
+            }
         
+        logger.info(f"Analysis complete - status: {response['status']}")
+        return response
+        
+    except ValueError as e:
+        logger.error(f"Validation error: {e}")
+        return {
+            "thread_id": thread_id,
+            "condition_id": condition_id,
+            "status": "error",
+            "error": str(e),
+            "error_type": "validation_error"
+        }
     except Exception as e:
         logger.error(f"Analysis failed: {e}", exc_info=True)
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
+        return {
+            "thread_id": thread_id,
+            "condition_id": condition_id,
+            "status": "error",
+            "error": str(e),
+            "error_type": "execution_error"
+        }

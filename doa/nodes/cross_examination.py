@@ -276,8 +276,26 @@ async def cross_examination_node(
     logger.info("Executing cross-examination of bull and bear theses")
     
     try:
-        # Create LLM instance for cross-examination
-        llm = create_llm_instance(config)
+        # Define structured output schema for debate record
+        from pydantic import BaseModel, Field
+        from typing import List as TypingList
+        
+        class DebateTestOutput(BaseModel):
+            test_type: Literal["evidence", "causality", "timing", "liquidity", "tail-risk"]
+            claim: str
+            challenge: str
+            outcome: Literal["survived", "weakened", "refuted"]
+            score: float = Field(ge=-1.0, le=1.0)
+        
+        class CrossExaminationOutput(BaseModel):
+            bull_tests: TypingList[DebateTestOutput] = Field(min_length=5, max_length=5)
+            bear_tests: TypingList[DebateTestOutput] = Field(min_length=5, max_length=5)
+            bull_score: float = Field(ge=-1.0, le=1.0)
+            bear_score: float = Field(ge=-1.0, le=1.0)
+            key_disagreements: TypingList[str] = Field(min_length=1, max_length=5)
+        
+        # Create LLM instance with structured output for cross-examination
+        llm = create_llm_instance(config.llm, structured_output_model=CrossExaminationOutput)
         
         # Define test types
         test_types: List[Literal["evidence", "causality", "timing", "liquidity", "tail-risk"]] = [
@@ -327,34 +345,14 @@ For each test, provide: claim, challenge, outcome (survived/weakened/refuted), a
 Then calculate overall scores for each thesis and identify key disagreements.
 """
         
-        # Create structured output schema for debate record
-        from pydantic import BaseModel, Field
-        from typing import List as TypingList
-        
-        class DebateTestOutput(BaseModel):
-            test_type: Literal["evidence", "causality", "timing", "liquidity", "tail-risk"]
-            claim: str
-            challenge: str
-            outcome: Literal["survived", "weakened", "refuted"]
-            score: float = Field(ge=-1.0, le=1.0)
-        
-        class CrossExaminationOutput(BaseModel):
-            bull_tests: TypingList[DebateTestOutput] = Field(min_length=5, max_length=5)
-            bear_tests: TypingList[DebateTestOutput] = Field(min_length=5, max_length=5)
-            bull_score: float = Field(ge=-1.0, le=1.0)
-            bear_score: float = Field(ge=-1.0, le=1.0)
-            key_disagreements: TypingList[str] = Field(min_length=1, max_length=5)
-        
         # Invoke LLM with structured output
-        structured_llm = llm.with_structured_output(CrossExaminationOutput)
-        
         messages = [
             {"role": "system", "content": CROSS_EXAMINATION_PROMPT},
             {"role": "user", "content": prompt_context}
         ]
         
         logger.info("Invoking LLM for cross-examination analysis")
-        result = await structured_llm.ainvoke(messages)
+        result = await llm.ainvoke(messages)
         
         # Convert to DebateTest objects
         bull_tests = [

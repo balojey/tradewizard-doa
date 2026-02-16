@@ -227,8 +227,18 @@ async def agent_signal_fusion_node(
     start_time = time.time()
     
     # Extract agent signals from state
-    agent_signals = state.get("agent_signals", [])
+    agent_signals_raw = state.get("agent_signals", [])
     active_agents = state.get("active_agents", [])
+    
+    # Convert dictionaries to AgentSignal objects if needed
+    agent_signals = []
+    for signal in agent_signals_raw:
+        if isinstance(signal, dict):
+            # Convert dict to AgentSignal
+            agent_signals.append(AgentSignal(**signal))
+        else:
+            # Already an AgentSignal object
+            agent_signals.append(signal)
     
     # Validate we have signals
     if not agent_signals:

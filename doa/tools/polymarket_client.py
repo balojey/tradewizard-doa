@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import httpx
 from pydantic import BaseModel
 
@@ -39,7 +39,7 @@ class PolymarketMarket(BaseModel):
     eventSlug: Optional[str] = None
     groupItemTitle: Optional[str] = None
     groupItemThreshold: Optional[str] = None
-    spread: Optional[str] = None
+    spread: Optional[Union[str, int, float]] = None  # Can be string, int, or float
     volumeNum: Optional[float] = None
     liquidityNum: Optional[float] = None
 

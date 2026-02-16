@@ -280,8 +280,16 @@ async def consensus_engine_node(
     start_time = time.time()
     
     # Extract required data from state
-    agent_signals = state.get("agent_signals", [])
+    agent_signals_raw = state.get("agent_signals", [])
     debate_record = state.get("debate_record")
+    
+    # Convert dictionaries to AgentSignal objects if needed
+    agent_signals = []
+    for signal in agent_signals_raw:
+        if isinstance(signal, dict):
+            agent_signals.append(AgentSignal(**signal))
+        else:
+            agent_signals.append(signal)
     
     # Validate we have signals
     if not agent_signals:

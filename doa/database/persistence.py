@@ -95,20 +95,24 @@ class PersistenceLayer:
                 logger.info(f"Updated market data for condition_id: {mbd.condition_id}")
                 return Ok(market_id)
             else:
-                # Insert new market
-                market_insert = MarketInsert(
-                    condition_id=mbd.condition_id,
-                    question=mbd.question,
-                    description=mbd.event_context.event_description if mbd.event_context else None,
-                    event_type=mbd.event_type,
-                    market_probability=mbd.current_probability,
-                    volume_24h=mbd.volume_24h,
-                    liquidity=mbd.liquidity_score * 100000,  # Convert score to approximate liquidity
-                    status="active"
-                )
+                # Insert new market - use condition_id as the id
+                insert_data = {
+                    "id": mbd.condition_id,  # Use condition_id as the primary key
+                    "condition_id": mbd.condition_id,
+                    "question": mbd.question,
+                    "event_type": mbd.event_type,
+                    "market_probability": mbd.current_probability,
+                    "volume_24h": mbd.volume_24h,
+                    "liquidity": mbd.liquidity_score * 100000,
+                    "status": "active"
+                }
+                
+                # Add optional fields only if they exist
+                if mbd.event_context and mbd.event_context.event_description:
+                    insert_data["description"] = mbd.event_context.event_description
                 
                 response = self.client.client.table("markets").insert(
-                    market_insert.model_dump(exclude_none=True, mode='json')
+                    insert_data
                 ).execute()
                 
                 market_id = response.data[0]["id"]
@@ -408,27 +412,48 @@ class PersistenceLayer:
             return Ok([])
         
         try:
-            # Query historical signals
-            response = self.client.client.table("agent_signals").select("*").eq(
+            # First, get the market_id from condition_id
+            market_response = self.client.client.table("markets").select("id").eq(
                 "condition_id", condition_id
+            ).execute()
+            
+            if not market_response.data:
+                # No market found, return empty list
+                logger.info(f"No market found for condition_id: {condition_id}")
+                return Ok([])
+            
+            market_id = market_response.data[0]["id"]
+            
+            # Query historical signals using market_id
+            response = self.client.client.table("agent_signals").select("*").eq(
+                "market_id", market_id
             ).eq(
                 "agent_name", agent_name
             ).order(
-                "timestamp", desc=True
+                "created_at", desc=True
             ).limit(limit).execute()
             
             # Convert to AgentSignal objects
             signals = []
             for row in response.data:
+                # Extract key_drivers and risk_factors from key_drivers JSON field
+                key_drivers_data = row.get("key_drivers", {})
+                if isinstance(key_drivers_data, dict):
+                    key_drivers = key_drivers_data.get("drivers", [])
+                    risk_factors = key_drivers_data.get("risks", [])
+                else:
+                    key_drivers = []
+                    risk_factors = []
+                
                 signal = AgentSignal(
                     agent_name=row["agent_name"],
-                    timestamp=row["timestamp"],
+                    timestamp=int(row["created_at"].timestamp()) if isinstance(row["created_at"], datetime) else int(datetime.fromisoformat(row["created_at"].replace('Z', '+00:00')).timestamp()),
                     confidence=row["confidence"],
                     direction=row["direction"],
                     fair_probability=row["fair_probability"],
-                    key_drivers=row["key_drivers"],
-                    risk_factors=row["risk_factors"],
-                    metadata=row["metadata"]
+                    key_drivers=key_drivers,
+                    risk_factors=risk_factors,
+                    metadata=row.get("metadata", {})
                 )
                 signals.append(signal)
             
