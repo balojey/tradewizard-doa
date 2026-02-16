@@ -530,6 +530,53 @@ MIN_EDGE_THRESHOLD=0.05                # Minimum edge to recommend trade (5%)
 HIGH_DISAGREEMENT_THRESHOLD=0.15       # Disagreement index threshold (15%)
 ```
 
+### Workflow Service Configuration (Remote Execution)
+
+The system supports executing market analysis workflows via HTTP requests to a remote service, enabling deployment flexibility and separation of concerns.
+
+```bash
+# .env
+# Optional: Remote workflow service URL
+WORKFLOW_SERVICE_URL=https://your-workflow-service.com/analyze
+
+# Optional: Authentication token for workflow service
+DIGITALOCEAN_API_TOKEN=your_api_token_here
+
+# Optional: Request timeout in milliseconds (default: 120000 = 2 minutes)
+WORKFLOW_SERVICE_TIMEOUT_MS=120000
+```
+
+**Configuration Modes:**
+
+1. **Local Execution (Default)**: When `WORKFLOW_SERVICE_URL` is not set, workflows execute locally using LangGraph
+2. **Remote Execution**: When `WORKFLOW_SERVICE_URL` is set, all analysis requests are sent to the remote service via HTTP
+
+**How it works:**
+- CLI and Monitor Service automatically route to the configured execution method
+- No code changes needed - just set the environment variable
+- Authentication via Bearer token in Authorization header
+- Graceful error handling with detailed logging
+
+**Benefits:**
+- ✅ Deploy workflow execution separately from CLI/Monitor
+- ✅ Scale workflow processing independently
+- ✅ Centralize LLM API key management
+- ✅ Reduce resource requirements for CLI/Monitor instances
+- ✅ Easy rollback by removing environment variable
+
+**Migration Path:**
+1. Deploy workflow service to remote infrastructure
+2. Test with `WORKFLOW_SERVICE_URL` on one instance
+3. Monitor logs and health metrics
+4. Gradually roll out to more instances
+5. Rollback by removing `WORKFLOW_SERVICE_URL` if needed
+
+**Logging and Monitoring:**
+
+For detailed information about log messages, error formats, and health check responses, see [Workflow Service Logging Documentation](./docs/WORKFLOW_SERVICE_LOGGING.md).
+
+See [Workflow Service Deployment Guide](#workflow-service-deployment) for complete setup instructions.
+
 ## Usage
 
 ### CLI Interface

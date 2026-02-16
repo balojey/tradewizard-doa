@@ -43,6 +43,12 @@ export interface HealthStatus {
     running: boolean;
     executing: boolean;
   };
+  workflowService: {
+    enabled: boolean;
+    url: string | null;
+    lastSuccess: string | null;
+    consecutiveFailures: number;
+  };
   quota: {
     newsapi: { used: number; limit: number };
     twitter: { used: number; limit: number };
@@ -102,6 +108,8 @@ export class AutomatedMarketMonitor implements MonitorService {
   private lastDatabaseCheck: Date = new Date();
   private isDatabaseConnected: boolean = false;
   private opikIntegration: OpikMonitorIntegration;
+  private lastWorkflowServiceSuccess: Date | null = null;
+  private workflowServiceConsecutiveFailures: number = 0;
 
   constructor(
     private config: EngineConfig,
@@ -206,6 +214,12 @@ export class AutomatedMarketMonitor implements MonitorService {
         running: this.scheduler.isRunning(),
         executing: (this.scheduler as any).isExecutingCycle?.() || false,
       },
+      workflowService: {
+        enabled: !!this.config.workflowService?.url,
+        url: this.config.workflowService?.url || null,
+        lastSuccess: this.lastWorkflowServiceSuccess?.toISOString() || null,
+        consecutiveFailures: this.workflowServiceConsecutiveFailures,
+      },
       quota: {
         newsapi: {
           used: this.quotaManager.getUsage('newsapi'),
@@ -237,6 +251,11 @@ export class AutomatedMarketMonitor implements MonitorService {
 
   /**
    * Manually trigger analysis for a specific market
+   * 
+   * This method ensures resilient error handling:
+   * - Errors are logged but don't stop the monitoring service
+   * - Health metrics are updated on failures
+   * - Errors are propagated to allow callers to handle them appropriately
    */
   async analyzeMarket(conditionId: string): Promise<TradeRecommendation> {
     console.log(`[MonitorService] Analyzing market: ${conditionId}`);
@@ -265,6 +284,13 @@ export class AutomatedMarketMonitor implements MonitorService {
       // Update last analysis time
       this.lastAnalysisTime = new Date();
 
+      // Track workflow service success if enabled
+      if (this.config.workflowService?.url) {
+        this.lastWorkflowServiceSuccess = new Date();
+        this.workflowServiceConsecutiveFailures = 0;
+        console.log(`[MonitorService] Workflow service success - consecutive failures reset to 0`);
+      }
+
       const duration = Date.now() - startTime;
       
       // Record analysis in Opik integration
@@ -277,10 +303,25 @@ export class AutomatedMarketMonitor implements MonitorService {
       const duration = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
       
+      // Track workflow service failure if enabled
+      if (this.config.workflowService?.url) {
+        this.workflowServiceConsecutiveFailures++;
+        console.error(
+          `[MonitorService] Workflow service failure (consecutive: ${this.workflowServiceConsecutiveFailures}): ${errorMessage}`
+        );
+      } else {
+        // Log error for local workflow execution
+        console.error(`[MonitorService] Local workflow execution failed: ${errorMessage}`);
+      }
+      
       // Record failed analysis in Opik integration
       this.opikIntegration.recordAnalysis(conditionId, duration, 0, false, [], errorMessage);
       
+      // Log full error details for debugging
       console.error(`[MonitorService] Market analysis failed after ${duration}ms:`, error);
+      
+      // Propagate error to caller - the caller (discoverAndAnalyze/updateExistingMarkets)
+      // will catch this and continue processing other markets
       throw error;
     }
   }
@@ -320,12 +361,17 @@ export class AutomatedMarketMonitor implements MonitorService {
       this.opikIntegration.recordDiscovery(markets.length);
 
       // Analyze each discovered market
+      // Error handling: Each market analysis is isolated - failures don't stop the cycle
       for (const market of markets) {
         try {
           await this.analyzeMarket(market.conditionId);
         } catch (error) {
-          console.error(`[MonitorService] Failed to analyze market ${market.conditionId}:`, error);
-          // Continue with next market (error isolation)
+          // Log error but continue processing other markets (Requirement 4.3)
+          console.error(
+            `[MonitorService] Failed to analyze market ${market.conditionId}, continuing with next market:`,
+            error
+          );
+          // Health metrics are already updated in analyzeMarket() error handler
         }
       }
 
@@ -411,8 +457,12 @@ export class AutomatedMarketMonitor implements MonitorService {
           // Record update in Opik
           this.opikIntegration.recordUpdate(market.conditionId);
         } catch (error) {
-          console.error(`[MonitorService] Failed to update market ${market.conditionId}:`, error);
-          // Continue with next market (error isolation)
+          // Log error but continue processing other markets (Requirement 4.3)
+          console.error(
+            `[MonitorService] Failed to update market ${market.conditionId}, continuing with next market:`,
+            error
+          );
+          // Health metrics are already updated in analyzeMarket() error handler
         }
       }
     } catch (error) {
@@ -510,6 +560,18 @@ export class AutomatedMarketMonitor implements MonitorService {
 
     if (!this.scheduler.isRunning()) {
       return 'degraded';
+    }
+
+    // Check workflow service health if enabled
+    if (this.config.workflowService?.url) {
+      // If we have 3 or more consecutive failures, mark as unhealthy
+      if (this.workflowServiceConsecutiveFailures >= 3) {
+        return 'unhealthy';
+      }
+      // If we have 1-2 consecutive failures, mark as degraded
+      if (this.workflowServiceConsecutiveFailures > 0) {
+        return 'degraded';
+      }
     }
 
     return 'healthy';

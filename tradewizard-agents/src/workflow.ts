@@ -413,16 +413,71 @@ export interface AnalysisResult {
 /**
  * Analyze a prediction market
  *
- * This is the main entry point for the Market Intelligence Engine.
- * It executes the complete workflow for a given market condition ID.
+ * This function routes to either local workflow execution or remote workflow service
+ * based on configuration. The caller doesn't need to know which execution method is used.
+ *
+ * @param conditionId - Polymarket condition ID to analyze
+ * @param config - Engine configuration
+ * @param polymarketClient - Polymarket API client (only used for local execution)
+ * @param supabaseManager - Optional Supabase client manager (only used for local execution)
+ * @param existingOpikHandler - Optional Opik handler (only used for local execution)
+ * @returns Analysis result with recommendation and agent signals
+ */
+export async function analyzeMarket(
+  conditionId: string,
+  config: EngineConfig,
+  polymarketClient: PolymarketClient,
+  supabaseManager?: SupabaseClientManager,
+  existingOpikHandler?: any
+): Promise<AnalysisResult> {
+  // Check if workflow service URL is configured (Requirements 1.2, 1.3, 9.1, 9.2)
+  if (config.workflowService?.url) {
+    console.log(`[Workflow] Using workflow service at ${config.workflowService.url}`);
+    return executeRemoteWorkflow(conditionId, config);
+  }
+
+  console.log('[Workflow] Using local workflow execution');
+  return executeLocalWorkflow(
+    conditionId,
+    config,
+    polymarketClient,
+    supabaseManager,
+    existingOpikHandler
+  );
+}
+
+/**
+ * Execute workflow via remote service
+ *
+ * @param conditionId - Polymarket condition ID to analyze
+ * @param config - Engine configuration
+ * @returns Analysis result from workflow service
+ */
+async function executeRemoteWorkflow(
+  conditionId: string,
+  config: EngineConfig
+): Promise<AnalysisResult> {
+  const { createWorkflowServiceClient } = await import('./utils/workflow-service-client.js');
+  const client = createWorkflowServiceClient(config);
+
+  if (!client) {
+    throw new Error('Workflow service client could not be created');
+  }
+
+  return client.analyzeMarket(conditionId);
+}
+
+/**
+ * Execute workflow locally (existing implementation)
  *
  * @param conditionId - Polymarket condition ID to analyze
  * @param config - Engine configuration
  * @param polymarketClient - Polymarket API client
  * @param supabaseManager - Optional Supabase client manager for PostgreSQL checkpointing
+ * @param existingOpikHandler - Optional Opik handler
  * @returns Analysis result with recommendation and agent signals
  */
-export async function analyzeMarket(
+async function executeLocalWorkflow(
   conditionId: string,
   config: EngineConfig,
   polymarketClient: PolymarketClient,
