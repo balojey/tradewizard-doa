@@ -27,6 +27,13 @@ from langgraph.graph import StateGraph, START, END
 from langgraph.types import Send
 from langgraph.checkpoint.memory import MemorySaver
 
+# Configure Opik at module level
+try:
+    import opik
+    opik.configure()
+except Exception as e:
+    logging.warning(f"Failed to configure Opik: {e}")
+
 # Optional PostgreSQL checkpointer
 try:
     from langgraph.checkpoint.postgres import PostgresSaver
@@ -477,24 +484,37 @@ async def analyze_market(
         # Create checkpointer
         checkpointer = create_checkpointer(config)
         
-        # Create Opik callback handler if enabled
-        opik_handler = None
+        # Create Opik tracer if enabled
+        opik_tracer = None
         if config.opik.is_enabled():
             try:
-                from opik.integrations.langchain import OpikCallbackHandler
-                opik_handler = OpikCallbackHandler(
+                from opik.integrations.langchain import OpikTracer, track_langgraph
+                opik_tracer = OpikTracer(
                     project_name=config.opik.project_name,
-                    workspace=config.opik.workspace,
+                    tags=["doa-workflow", f"condition-{condition_id}"],
+                    metadata={
+                        "condition_id": condition_id,
+                        "thread_id": thread_id,
+                    }
                 )
                 logger.info("Opik tracking enabled")
             except Exception as e:
-                logger.warning(f"Failed to create Opik handler: {e}")
+                logger.warning(f"Failed to create Opik tracer: {e}")
                 logger.warning("Continuing without Opik tracking")
         else:
             logger.info("Opik tracking disabled (no API key)")
         
         # Compile graph with checkpointer
         graph = workflow.compile(checkpointer=checkpointer)
+        
+        # Wrap graph with Opik tracking if enabled
+        if opik_tracer:
+            try:
+                from opik.integrations.langchain import track_langgraph
+                graph = track_langgraph(graph, opik_tracer)
+                logger.info("Opik tracking wrapped around LangGraph workflow")
+            except Exception as e:
+                logger.warning(f"Failed to wrap graph with Opik tracking: {e}")
         
         logger.info("Workflow graph compiled successfully")
         
@@ -510,11 +530,7 @@ async def analyze_market(
         # Create config for graph invocation with thread_id
         graph_config = {"configurable": {"thread_id": thread_id}}
         
-        # Add Opik handler to callbacks if enabled
-        if opik_handler:
-            graph_config["callbacks"] = [opik_handler]
-        
-        # Invoke graph
+        # Invoke graph (Opik tracking is already wrapped around the graph)
         logger.info("Starting workflow execution...")
         
         final_state = await graph.ainvoke(initial_state, graph_config)
