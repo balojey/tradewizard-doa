@@ -24,7 +24,7 @@ Json = Dict[str, Any]
 
 class MarketRow(BaseModel):
     """Markets table row type."""
-    id: UUID
+    id: str  # Changed from UUID to str - stores condition_id (hex string like 0x...)
     condition_id: str
     question: str
     description: Optional[str] = None
@@ -43,7 +43,7 @@ class MarketRow(BaseModel):
 class RecommendationRow(BaseModel):
     """Recommendations table row type."""
     id: UUID
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     direction: str
     fair_probability: Optional[float] = None
     market_edge: Optional[float] = None
@@ -63,7 +63,7 @@ class RecommendationRow(BaseModel):
 class AgentSignalRow(BaseModel):
     """Agent signals table row type."""
     id: UUID
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     recommendation_id: Optional[UUID] = None
     agent_name: str
     agent_type: str
@@ -78,7 +78,7 @@ class AgentSignalRow(BaseModel):
 class AnalysisHistoryRow(BaseModel):
     """Analysis history table row type."""
     id: UUID
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     analysis_type: str
     status: str
     duration_ms: Optional[int] = None
@@ -102,7 +102,7 @@ class RecommendationOutcomeRow(BaseModel):
     """Recommendation outcomes table row type."""
     id: UUID
     recommendation_id: Optional[UUID] = None
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     actual_outcome: str
     recommendation_was_correct: bool
     market_probability_at_recommendation: Optional[float] = None
@@ -139,7 +139,7 @@ class MigrationLockRow(BaseModel):
 
 class MarketInsert(BaseModel):
     """Markets table insert type."""
-    id: Optional[UUID] = None
+    id: Optional[str] = None  # Changed from UUID to str - stores condition_id (hex string like 0x...)
     condition_id: str
     question: str
     description: Optional[str] = None
@@ -158,7 +158,7 @@ class MarketInsert(BaseModel):
 class RecommendationInsert(BaseModel):
     """Recommendations table insert type."""
     id: Optional[UUID] = None
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     direction: str
     fair_probability: Optional[float] = None
     market_edge: Optional[float] = None
@@ -178,7 +178,7 @@ class RecommendationInsert(BaseModel):
 class AgentSignalInsert(BaseModel):
     """Agent signals table insert type."""
     id: Optional[UUID] = None
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     recommendation_id: Optional[UUID] = None
     agent_name: str
     agent_type: str
@@ -193,7 +193,7 @@ class AgentSignalInsert(BaseModel):
 class AnalysisHistoryInsert(BaseModel):
     """Analysis history table insert type."""
     id: Optional[UUID] = None
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     analysis_type: str
     status: str
     duration_ms: Optional[int] = None
@@ -207,7 +207,7 @@ class RecommendationOutcomeInsert(BaseModel):
     """Recommendation outcomes table insert type."""
     id: Optional[UUID] = None
     recommendation_id: Optional[UUID] = None
-    market_id: Optional[UUID] = None
+    market_id: Optional[str] = None  # Changed from UUID to str - references markets.id (hex string)
     actual_outcome: str
     recommendation_was_correct: bool
     market_probability_at_recommendation: Optional[float] = None
