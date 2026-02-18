@@ -82,7 +82,7 @@ logger = logging.getLogger("TradeWizard")
 # AGENT NODE CREATION
 # ============================================================================
 
-def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
+def create_all_agent_nodes(config: EngineConfig, polymarket_client: PolymarketClient) -> Dict[str, Any]:
     """
     Create all agent nodes using the agent factory.
     
@@ -91,6 +91,7 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
     
     Args:
         config: Engine configuration
+        polymarket_client: Polymarket client instance for agents that need it
         
     Returns:
         Dictionary mapping agent names to their node functions
@@ -292,7 +293,7 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     )
     
     # Add all agent nodes
-    agent_nodes = create_all_agent_nodes(config)
+    agent_nodes = create_all_agent_nodes(config, polymarket_client)
     for agent_name, agent_node in agent_nodes.items():
         workflow.add_node(agent_name, agent_node)
     
