@@ -214,9 +214,13 @@ class ToolContext(BaseModel):
     Provides shared resources for tool execution including API clients,
     caching, and audit logging.
     """
-    newsdata_client: Any = Field(
-        ...,
+    newsdata_client: Optional[Any] = Field(
+        None,
         description="NewsDataClient instance for making API requests"
+    )
+    polymarket_client: Optional[Any] = Field(
+        None,
+        description="PolymarketClient instance for making API requests"
     )
     cache: Any = Field(
         ...,

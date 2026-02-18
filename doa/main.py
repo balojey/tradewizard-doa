@@ -128,7 +128,7 @@ def create_all_agent_nodes(config: EngineConfig) -> Dict[str, Any]:
     # Polling & Statistical Agents
     if config.agents.enable_polling_statistical:
         # Use autonomous polling intelligence agent
-        agent_nodes['polling_intelligence'] = polling_intelligence.create_polling_intelligence_agent_node(config)
+        agent_nodes['polling_intelligence'] = polling_intelligence.create_polling_intelligence_agent_node(config, polymarket_client)
         agent_nodes['historical_pattern'] = create_agent_node(
             agent_name=historical_pattern.AGENT_NAME,
             system_prompt=historical_pattern.SYSTEM_PROMPT,

@@ -38,7 +38,7 @@ from prompts import POLLING_INTELLIGENCE_PROMPT
 AGENT_NAME = "polling_intelligence"
 
 
-def create_polling_intelligence_agent_node(config: Any) -> Callable[[GraphState], Dict[str, Any]]:
+def create_polling_intelligence_agent_node(config: Any, polymarket_client: Any = None) -> Callable[[GraphState], Dict[str, Any]]:
     """
     Create the autonomous Polling Intelligence agent node.
     
@@ -58,12 +58,13 @@ def create_polling_intelligence_agent_node(config: Any) -> Callable[[GraphState]
     
     Args:
         config: Engine configuration containing LLM and agent settings
+        polymarket_client: PolymarketClient instance for making API requests
         
     Returns:
         Async function that takes GraphState and returns state update
         
     Example:
-        >>> node = create_polling_intelligence_agent_node(config)
+        >>> node = create_polling_intelligence_agent_node(config, polymarket_client)
         >>> state_update = await node(state)
     """
     from agents.autonomous_agent_factory import create_autonomous_agent_node
@@ -173,9 +174,23 @@ tools based on market characteristics (volume, volatility, related markets).
             }
         
         # Check for Polymarket client availability (Requirement 8.3)
-        # The Polymarket client is initialized in the config and available globally
-        # We don't need an API key check like NewsData since Polymarket client
-        # is part of the core DOA infrastructure
+        if polymarket_client is None:
+            # Graceful degradation: Return low-confidence signal without tools
+            from models.types import AgentSignal
+            import time
+            
+            return {
+                "agent_signals": [AgentSignal(
+                    agent_name=AGENT_NAME,
+                    timestamp=int(time.time()),
+                    confidence=0.2,  # Very low confidence without Polymarket data
+                    direction="NEUTRAL",
+                    fair_probability=mbd.current_probability,
+                    key_drivers=["Polymarket client not available - unable to fetch market intelligence"],
+                    risk_factors=["Analysis limited without market data access"],
+                    metadata={"polymarket_available": False}
+                ).model_dump()]
+            }
         
         # Initialize tool cache (Requirement 8.3)
         # Use condition_id as session_id for cache scoping
@@ -186,9 +201,9 @@ tools based on market characteristics (volume, volatility, related markets).
         audit_log = []
         
         # Create tool context (Requirement 8.3)
-        # Note: polymarket_client is passed via config, not directly in context
         tool_context = ToolContext(
             newsdata_client=None,  # Not used for Polymarket tools
+            polymarket_client=polymarket_client,
             cache=tool_cache,
             audit_log=audit_log,
             agent_name=AGENT_NAME
