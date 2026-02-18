@@ -1,4 +1,3 @@
-from .serper_search import serper_search, web_search, SearchResult, SearchResults
 from .polymarket_client import (
     PolymarketClient,
     PolymarketMarket,
@@ -20,10 +19,6 @@ from .polymarket_tools import (
 )
 
 __all__ = [
-    "serper_search",
-    "web_search",
-    "SearchResult",
-    "SearchResults",
     "PolymarketClient",
     "PolymarketMarket",
     "PolymarketEvent",
