@@ -477,6 +477,22 @@ async def analyze_market(
         # Create checkpointer
         checkpointer = create_checkpointer(config)
         
+        # Create Opik callback handler if enabled
+        opik_handler = None
+        if config.opik.is_enabled():
+            try:
+                from opik.integrations.langchain import OpikCallbackHandler
+                opik_handler = OpikCallbackHandler(
+                    project_name=config.opik.project_name,
+                    workspace=config.opik.workspace,
+                )
+                logger.info("Opik tracking enabled")
+            except Exception as e:
+                logger.warning(f"Failed to create Opik handler: {e}")
+                logger.warning("Continuing without Opik tracking")
+        else:
+            logger.info("Opik tracking disabled (no API key)")
+        
         # Compile graph with checkpointer
         graph = workflow.compile(checkpointer=checkpointer)
         
@@ -493,6 +509,10 @@ async def analyze_market(
         
         # Create config for graph invocation with thread_id
         graph_config = {"configurable": {"thread_id": thread_id}}
+        
+        # Add Opik handler to callbacks if enabled
+        if opik_handler:
+            graph_config["callbacks"] = [opik_handler]
         
         # Invoke graph
         logger.info("Starting workflow execution...")

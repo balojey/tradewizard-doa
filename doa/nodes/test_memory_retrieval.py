@@ -24,7 +24,10 @@ from config import (
     LangGraphConfig,
     LLMConfig,
     ConsensusConfig,
-    DatabaseConfig
+    DatabaseConfig,
+    NewsDataConfig,
+    AutonomousAgentConfig,
+    OpikConfig
 )
 from utils.result import Ok
 
@@ -73,6 +76,23 @@ def create_test_config(enable_memory: bool = True) -> EngineConfig:
             enable_memory=enable_memory,
             max_historical_signals=3,
             memory_timeout_ms=5000
+        ),
+        newsdata=NewsDataConfig(
+            api_key="test-key",
+            base_url="https://newsdata.io/api/1",
+            timeout=30
+        ),
+        autonomous_agents=AutonomousAgentConfig(
+            max_tool_calls=10,
+            timeout_ms=30000,
+            cache_enabled=True
+        ),
+        opik=OpikConfig(
+            api_key=None,
+            project_name="test-project",
+            workspace=None,
+            base_url=None,
+            track_costs=True
         )
     )
 

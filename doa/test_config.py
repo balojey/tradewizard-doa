@@ -10,6 +10,9 @@ from config import (
     ConsensusConfig,
     MemorySystemConfig,
     LangGraphConfig,
+    NewsDataConfig,
+    AutonomousAgentConfig,
+    OpikConfig,
     EngineConfig,
     ConfigurationError,
     load_config,
@@ -248,6 +251,23 @@ def test_engine_config_validation():
             max_historical_signals=3,
             memory_timeout_ms=5000,
         ),
+        newsdata=NewsDataConfig(
+            api_key="test-key",
+            base_url="https://newsdata.io/api/1",
+            timeout=30,
+        ),
+        autonomous_agents=AutonomousAgentConfig(
+            max_tool_calls=10,
+            timeout_ms=30000,
+            cache_enabled=True,
+        ),
+        opik=OpikConfig(
+            api_key=None,
+            project_name="test-project",
+            workspace=None,
+            base_url=None,
+            track_costs=True,
+        ),
     )
     
     # Should not raise
@@ -299,6 +319,23 @@ def test_engine_config_validation_with_errors():
             enable_memory=True,
             max_historical_signals=3,
             memory_timeout_ms=5000,
+        ),
+        newsdata=NewsDataConfig(
+            api_key="test-key",
+            base_url="https://newsdata.io/api/1",
+            timeout=30,
+        ),
+        autonomous_agents=AutonomousAgentConfig(
+            max_tool_calls=10,
+            timeout_ms=30000,
+            cache_enabled=True,
+        ),
+        opik=OpikConfig(
+            api_key=None,
+            project_name="test-project",
+            workspace=None,
+            base_url=None,
+            track_costs=True,
         ),
     )
     
@@ -359,6 +396,23 @@ def test_engine_config_to_dict():
             enable_memory=True,
             max_historical_signals=3,
             memory_timeout_ms=5000,
+        ),
+        newsdata=NewsDataConfig(
+            api_key="test-key",
+            base_url="https://newsdata.io/api/1",
+            timeout=30,
+        ),
+        autonomous_agents=AutonomousAgentConfig(
+            max_tool_calls=10,
+            timeout_ms=30000,
+            cache_enabled=True,
+        ),
+        opik=OpikConfig(
+            api_key="test-opik-key",
+            project_name="test-project",
+            workspace="test-workspace",
+            base_url=None,
+            track_costs=True,
         ),
     )
     

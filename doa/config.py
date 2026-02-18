@@ -219,6 +219,35 @@ class MemorySystemConfig:
 
 
 @dataclass
+class OpikConfig:
+    """Opik observability configuration."""
+    api_key: Optional[str]
+    project_name: str
+    workspace: Optional[str]
+    base_url: Optional[str]
+    track_costs: bool
+    
+    def validate(self) -> List[str]:
+        """Validate Opik configuration."""
+        errors = []
+        
+        if self.api_key and not self.api_key.strip():
+            errors.append("OPIK_API_KEY must be non-empty if provided")
+        
+        if not self.project_name or not self.project_name.strip():
+            errors.append("OPIK_PROJECT_NAME is required")
+        
+        if self.base_url and not self.base_url.startswith(("http://", "https://")):
+            errors.append("OPIK_BASE_URL must be a valid URL")
+        
+        return errors
+    
+    def is_enabled(self) -> bool:
+        """Check if Opik tracking is enabled."""
+        return bool(self.api_key and self.api_key.strip())
+
+
+@dataclass
 class LangGraphConfig:
     """LangGraph workflow configuration."""
     checkpointer_type: str  # "memory", "sqlite", "postgres"
@@ -252,6 +281,7 @@ class EngineConfig:
     memory_system: MemorySystemConfig
     newsdata: NewsDataConfig
     autonomous_agents: AutonomousAgentConfig
+    opik: OpikConfig
 
     def validate(self) -> None:
         """
@@ -272,6 +302,7 @@ class EngineConfig:
         all_errors.extend(self.memory_system.validate())
         all_errors.extend(self.newsdata.validate())
         all_errors.extend(self.autonomous_agents.validate())
+        all_errors.extend(self.opik.validate())
 
         if all_errors:
             error_message = "Configuration validation failed:\n" + "\n".join(
@@ -335,6 +366,14 @@ class EngineConfig:
                 "max_tool_calls": self.autonomous_agents.max_tool_calls,
                 "timeout_ms": self.autonomous_agents.timeout_ms,
                 "cache_enabled": self.autonomous_agents.cache_enabled,
+            },
+            "opik": {
+                "enabled": self.opik.is_enabled(),
+                "project_name": self.opik.project_name,
+                "workspace": self.opik.workspace,
+                "base_url": self.opik.base_url,
+                "track_costs": self.opik.track_costs,
+                "api_key_configured": bool(self.opik.api_key),
             },
         }
 
@@ -478,6 +517,15 @@ def load_config() -> EngineConfig:
         cache_enabled=cache_enabled
     )
     
+    # Opik configuration
+    opik = OpikConfig(
+        api_key=os.getenv("OPIK_API_KEY"),
+        project_name=os.getenv("OPIK_PROJECT_NAME", "doa-market-analysis"),
+        workspace=os.getenv("OPIK_WORKSPACE"),
+        base_url=os.getenv("OPIK_URL_OVERRIDE"),
+        track_costs=os.getenv("OPIK_TRACK_COSTS", "true").lower() == "true"
+    )
+    
     # Create and validate configuration
     config = EngineConfig(
         polymarket=polymarket,
@@ -488,7 +536,8 @@ def load_config() -> EngineConfig:
         database=database,
         memory_system=memory_system,
         newsdata=newsdata,
-        autonomous_agents=autonomous_agents
+        autonomous_agents=autonomous_agents,
+        opik=opik
     )
     
     # Validate all configuration

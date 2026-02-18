@@ -107,10 +107,13 @@ cp .env.example .env
 Edit `.env` with your credentials:
 
 ```bash
-# Gradient AI Configuration
-GRADIENT_ACCESS_TOKEN=your_gradient_token
-GRADIENT_WORKSPACE_ID=your_workspace_id
-LLM_MODEL=meta-llama/llama-3.1-70b-instruct
+# Gradient AI Configuration (REQUIRED)
+DIGITALOCEAN_INFERENCE_KEY=your_gradient_model_access_key
+
+# LLM Configuration
+LLM_MODEL_NAME=llama-3.3-70b-instruct
+LLM_TEMPERATURE=0.7
+LLM_MAX_TOKENS=2000
 
 # Polymarket Configuration
 POLYMARKET_GAMMA_API_URL=https://gamma-api.polymarket.com
@@ -119,16 +122,25 @@ POLYMARKET_CLOB_API_URL=https://clob.polymarket.com
 # Supabase Configuration
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
+ENABLE_PERSISTENCE=true
 
-# Opik Configuration (optional)
-OPIK_API_KEY=your_opik_key
+# Opik Observability Configuration (OPTIONAL)
+# Leave OPIK_API_KEY empty to disable tracking
+OPIK_API_KEY=your_opik_api_key
+OPIK_PROJECT_NAME=doa-market-analysis
 OPIK_WORKSPACE=your_workspace
-OPIK_PROJECT_NAME=tradewizard-doa
+OPIK_URL_OVERRIDE=
+OPIK_TRACK_COSTS=true
 
 # Agent Configuration
-AGENT_TIMEOUT_MS=30000
-MAX_RETRIES=3
-ENABLE_ADVANCED_AGENTS=true
+AGENT_TIMEOUT_MS=45000
+AGENT_MAX_RETRIES=3
+ENABLE_MVP_AGENTS=true
+ENABLE_EVENT_INTELLIGENCE=true
+ENABLE_POLLING_STATISTICAL=true
+ENABLE_SENTIMENT_NARRATIVE=true
+ENABLE_PRICE_ACTION=true
+ENABLE_EVENT_SCENARIO=true
 ```
 
 ### 4. Set Up Database
@@ -525,12 +537,112 @@ pytest --cov=. --cov-report=html
 
 ### Opik Integration
 
-TradeWizard DOA integrates with Opik for comprehensive LLM observability:
+TradeWizard DOA integrates with [Opik](https://www.comet.com/opik) for comprehensive LLM observability and performance monitoring.
 
-- **Trace all LLM calls**: Every agent execution is traced
-- **Cost tracking**: Token usage and estimated costs per analysis
-- **Performance monitoring**: Latency and success rates
-- **Error tracking**: Failed calls and retry attempts
+#### Features
+
+- **Automatic LLM Tracing**: Every LangChain/LangGraph LLM call is automatically traced via OpikCallbackHandler
+- **Cost Tracking**: Token usage and estimated costs per analysis and per agent
+- **Performance Monitoring**: Latency, success rates, and agent execution times
+- **Error Tracking**: Failed calls, retry attempts, and error patterns
+- **Cycle Metrics**: Track complete analysis cycles with aggregate statistics
+- **Agent Performance**: Compare agent execution times, costs, and confidence levels
+
+#### Configuration
+
+Opik integration is configured through environment variables in your `.env` file:
+
+```bash
+# Opik API key - get yours at https://www.comet.com/opik
+# Leave empty to disable Opik tracking
+OPIK_API_KEY=your_opik_api_key
+
+# Project name for organizing traces in the dashboard
+OPIK_PROJECT_NAME=doa-market-analysis
+
+# Workspace identifier (optional, uses default if not specified)
+OPIK_WORKSPACE=your_workspace
+
+# Custom Opik instance URL (optional, for self-hosted instances)
+OPIK_URL_OVERRIDE=
+
+# Enable cost tracking (true/false)
+OPIK_TRACK_COSTS=true
+```
+
+#### Enabling Opik
+
+1. **Sign up for Opik**: Visit [https://www.comet.com/opik](https://www.comet.com/opik) and create an account
+2. **Get your API key**: Navigate to Settings → API Keys in the Opik dashboard
+3. **Configure environment**: Add your `OPIK_API_KEY` to `.env`
+4. **Run analysis**: Opik will automatically track all LLM calls
+
+#### Viewing Traces
+
+After running an analysis, view traces in the Opik dashboard:
+
+```
+https://www.comet.com/opik/{workspace}/projects/{project_name}/traces
+```
+
+Each analysis creates a trace with:
+- **Condition ID**: Market identifier for filtering
+- **Agent Signals**: Individual agent execution traces
+- **Token Usage**: Input/output tokens per LLM call
+- **Costs**: Estimated costs based on model pricing
+- **Latency**: Execution time for each operation
+- **Metadata**: Market data, agent names, confidence scores
+
+#### Programmatic Access
+
+Access Opik metrics programmatically using the `OpikMonitorIntegration` class:
+
+```python
+from utils.opik_integration import OpikMonitorIntegration
+from config import load_config
+
+config = load_config()
+opik_monitor = OpikMonitorIntegration(config)
+
+# Start tracking a cycle
+cycle_id = opik_monitor.start_cycle()
+
+# Record market discovery
+opik_monitor.record_discovery(market_count=10)
+
+# Record individual analysis
+opik_monitor.record_analysis(
+    condition_id="0x1234...",
+    duration=12400.0,  # milliseconds
+    cost=0.23,  # USD
+    success=True,
+    agent_signals=agent_signals
+)
+
+# End cycle and get metrics
+metrics = opik_monitor.end_cycle()
+
+# Get aggregate metrics across all cycles
+aggregate = opik_monitor.get_aggregate_metrics()
+print(f"Total cost: ${aggregate.total_cost:.2f}")
+print(f"Average cost per market: ${aggregate.average_cost_per_market:.4f}")
+print(f"Success rate: {aggregate.success_rate:.1%}")
+```
+
+#### Disabling Opik
+
+To disable Opik tracking:
+
+1. Remove or leave empty the `OPIK_API_KEY` in `.env`
+2. The system will automatically detect the missing key and disable tracking
+3. All workflow functionality continues normally without observability
+
+#### Graceful Degradation
+
+Opik integration is designed to fail gracefully:
+- If Opik API is unreachable, the workflow continues without tracking
+- If handler creation fails, a warning is logged and execution proceeds
+- Observability failures never block core analysis functionality
 
 View traces in the Opik dashboard at https://www.comet.com/opik
 
@@ -590,6 +702,36 @@ Access audit logs in the database `analysis_history` table.
 
 MIT License - see LICENSE file for details
 
+## Code Style
+
+This project follows [PEP 8](https://peps.python.org/pep-0008/) Python style guidelines:
+
+- **Line length**: Maximum 120 characters
+- **Indentation**: 4 spaces (no tabs)
+- **Naming conventions**:
+  - `snake_case` for functions, variables, and module names
+  - `PascalCase` for class names
+  - `UPPER_CASE` for constants
+- **Docstrings**: All public functions and classes have docstrings
+- **Type hints**: Type annotations for function parameters and return values
+- **Imports**: Organized in groups (standard library, third-party, local)
+
+### Running Style Checks
+
+```bash
+# Install development dependencies
+pip install flake8 black mypy
+
+# Check code style
+flake8 . --max-line-length=120 --extend-ignore=E203,W503
+
+# Format code
+black . --line-length=120
+
+# Type checking
+mypy . --ignore-missing-imports
+```
+
 ## Contributing
 
 Contributions are welcome! Please open an issue or pull request for:
@@ -597,3 +739,10 @@ Contributions are welcome! Please open an issue or pull request for:
 - Performance improvements
 - Bug fixes
 - Documentation enhancements
+
+Before submitting:
+1. Ensure code follows PEP 8 style guidelines
+2. Add docstrings to all new functions and classes
+3. Include type hints for function signatures
+4. Write tests for new functionality
+5. Update documentation as needed
