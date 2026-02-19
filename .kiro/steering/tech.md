@@ -1,136 +1,182 @@
-# TradeWizard Technical Stack
-
-## Architecture Overview
-
-TradeWizard is a full-stack TypeScript application with a multi-agent backend and modern web frontend, integrated with Polymarket's prediction market infrastructure.
+# Technology Stack
 
 ## Backend (tradewizard-agents)
 
-### Core Technologies
-- **Runtime**: Node.js 18+ with ES2022 modules
-- **Language**: TypeScript with strict mode enabled
-- **AI Framework**: LangGraph for multi-agent workflows
-- **LLM Providers**: OpenAI (GPT-4), Anthropic (Claude), Google (Gemini)
-- **Observability**: Opik for LLM tracing and cost tracking
-- **Database**: Supabase (PostgreSQL) with real-time subscriptions
-- **Validation**: Zod schemas for type-safe data validation
+### Runtime & Language
+- Node.js 18+
+- TypeScript 5.9+ with strict mode
+- ESM modules (type: "module")
 
-### Key Dependencies
-- `@langchain/langgraph` - Multi-agent workflow orchestration
-- `@langchain/core` - LangChain core abstractions
-- `@polymarket/clob-client` - Polymarket API integration
-- `@supabase/supabase-js` - Database and real-time subscriptions
-- `opik` - LLM observability and tracing
-- `zod` - Runtime type validation
+### AI & Workflow Framework
+- **LangGraph**: Multi-agent workflow orchestration with state management
+- **LangChain**: LLM integrations and tool-calling capabilities
+- **Opik**: LLM observability, tracing, and cost tracking
 
-### Testing Framework
-- **Unit Tests**: Vitest with 30s timeout for LLM calls
-- **Property-Based Tests**: fast-check for correctness properties
-- **Coverage**: V8 provider with text/json/html reports
-- **E2E Tests**: Custom scripts for 24h continuous monitoring
+### LLM Providers
+- OpenAI (GPT-4, GPT-4-turbo, GPT-4o-mini)
+- Anthropic (Claude-3-sonnet, Claude-3-haiku)
+- Google (Gemini-1.5-pro, Gemini-1.5-flash, Gemini-2.5-flash)
+- Amazon Nova (via AWS Bedrock)
+
+### Database & Storage
+- Supabase (PostgreSQL) for persistence
+- LangGraph checkpointers: memory, sqlite, postgres
+
+### External APIs
+- Polymarket CLOB API (@polymarket/clob-client)
+- NewsData.io API for news intelligence
+- Polymarket Gamma API for market data
+
+### Testing
+- Vitest for unit and integration tests
+- fast-check for property-based testing
+- 30s timeout for LLM-dependent tests
+
+### Build & Development
+- esbuild for production builds
+- tsx for development with hot reload
+- ESLint + Prettier for code quality
+
+## Python Backend (doa)
+
+### Runtime & Language
+- Python 3.10+
+- Type hints with mypy
+
+### AI Framework
+- LangGraph for workflow orchestration
+- LangChain for LLM integrations
+- Digital Ocean Gradient AI Platform
+- Opik for observability
+
+### LLM Models
+- Llama-3.3-70b-instruct (default)
+- Llama-3.1-8b-instruct (budget option)
+
+### Database
+- Supabase (PostgreSQL)
+- SQLAlchemy for ORM
+
+### Testing
+- pytest with pytest-asyncio
+- Hypothesis for property-based testing
+- pytest-cov for coverage
+
+### Code Style
+- PEP 8 guidelines
+- Black formatter (120 char line length)
+- flake8 for linting
+- snake_case for functions/variables
+- PascalCase for classes
 
 ## Frontend (tradewizard-frontend)
 
-### Core Technologies
-- **Framework**: Next.js 16 with App Router
-- **Language**: TypeScript with strict mode
-- **Styling**: Tailwind CSS 4
-- **State Management**: React Query (@tanstack/react-query)
-- **Authentication**: Magic Link SDK for wallet connection
-- **Blockchain**: ethers.js v5 and viem for Web3 interactions
-- **UI Components**: Lucide React icons, Framer Motion animations
+### Framework
+- Next.js 16 with App Router
+- React 19
+- TypeScript 5
 
-### Key Dependencies
-- `@polymarket/clob-client` - Trading API integration
-- `@supabase/supabase-js` - Real-time data subscriptions
-- `magic-sdk` - Wallet authentication
-- `recharts` - Data visualization
-- `date-fns` - Date manipulation
+### Styling
+- Tailwind CSS 4
+- Framer Motion for animations
+- Lucide React for icons
 
-## Database & Infrastructure
+### State Management
+- TanStack React Query (@tanstack/react-query)
 
-### Supabase PostgreSQL
-- **Real-time subscriptions** for live market data
-- **Row Level Security (RLS)** for data access control
-- **Auto-generated TypeScript types** from schema
-- **Migration system** for schema versioning
+### Authentication & Blockchain
+- Magic Link SDK for authentication
+- ethers.js v5 for Ethereum interactions
+- viem for modern Ethereum utilities
 
-### Key Tables
-- `markets` - Market metadata and analysis status
-- `recommendations` - AI-generated trade recommendations  
-- `agent_signals` - Individual agent analysis results
-- `analysis_history` - Audit trail of analysis runs
+### Data Fetching
+- Supabase client (@supabase/supabase-js)
+- Polymarket CLOB client
 
-## Development Workflow
+### UI Components
+- Recharts for data visualization
+- react-intersection-observer for lazy loading
 
-### Common Commands
+## Common Commands
 
-#### Backend (tradewizard-agents)
+### Backend (tradewizard-agents)
+
 ```bash
 # Development
 npm run dev              # Start with hot reload
-npm run build           # Compile TypeScript to dist/
-npm start              # Run compiled JavaScript
+npm run build            # Build for production
+npm start                # Run production build
 
 # Testing
-npm test               # Run all tests
-npm run test:watch     # Watch mode
-npm run test:e2e       # End-to-end tests
-npm run test:24h       # 24-hour continuous test
+npm test                 # Run all tests
+npm run test:watch       # Watch mode
+npm run test:e2e         # End-to-end tests
 
-# CLI Usage
-npm run cli -- analyze <conditionId>  # Analyze market
-npm run cli -- history <conditionId>  # Query traces
+# CLI
+npm run cli -- analyze <condition-id>  # Analyze market
+npm run cli -- history <condition-id>  # Query history
 
-# Monitoring
-npm run monitor:start   # Start monitoring service
-npm run monitor:status  # Check service status
+# Monitoring Service
+npm run monitor:start    # Start monitoring
+npm run monitor:stop     # Stop monitoring
+npm run monitor:status   # Check status
 
 # Database
-npm run migrate        # Run database migrations
-npm run migrate:status # Check migration status
+npm run migrate          # Run migrations
+npm run migrate:status   # Check migration status
+
+# Code Quality
+npm run lint             # Check linting
+npm run lint:fix         # Fix linting issues
+npm run format           # Format code
+npm run format:check     # Check formatting
 ```
 
-#### Frontend (tradewizard-frontend)
+### Python Backend (doa)
+
+```bash
+# Setup
+python -m venv venv
+source venv/bin/activate  # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+
+# Development
+python main.py analyze <condition-id>  # Analyze market
+python main.py history <condition-id>  # Query history
+python main.py monitor                 # Start monitoring
+
+# Testing
+pytest                   # Run all tests
+pytest -m "not property" # Unit tests only
+pytest -m property       # Property-based tests only
+pytest --cov=.          # With coverage
+
+# Code Quality
+flake8 . --max-line-length=120
+black . --line-length=120
+mypy . --ignore-missing-imports
+
+# Database
+python -m database.migrations.001_initial_schema
+```
+
+### Frontend (tradewizard-frontend)
+
 ```bash
 # Development
-npm run dev    # Start Next.js dev server
-npm run build  # Build for production
-npm start      # Start production server
-npm run lint   # ESLint checking
+npm run dev              # Start dev server (localhost:3000)
+npm run build            # Build for production
+npm start                # Run production build
+
+# Code Quality
+npm run lint             # Check linting
 ```
 
-### Code Quality Standards
-- **TypeScript**: Strict mode with no `any` types
-- **ESLint**: Configured for TypeScript with Next.js rules
-- **Prettier**: Consistent code formatting
-- **Property-based testing**: Universal correctness properties
-- **Error handling**: Graceful degradation patterns
+## Configuration Files
 
-## Configuration Management
-
-### Environment Variables
-- **Multi-provider LLM setup** (OpenAI, Anthropic, Google)
-- **Single-provider mode** for budget-friendly operation
-- **Opik integration** for observability (cloud or self-hosted)
-- **LangGraph checkpointing** (memory, SQLite, PostgreSQL)
-
-### Build Configuration
-- **esbuild** for fast backend compilation
-- **TypeScript** with ES2022 target
-- **Vitest** for testing with globals enabled
-- **Next.js** with Tailwind CSS integration
-
-## Integration Points
-
-### External APIs
-- **Polymarket CLOB API** - Market data and trade execution
-- **NewsData.io** - Real-time news feeds
-- **Multiple LLM providers** - AI analysis capabilities
-- **Supabase** - Database and real-time subscriptions
-
-### Security
-- **API key management** via environment variables
-- **Rate limiting** for external API calls
-- **Input validation** with Zod schemas
-- **Audit logging** for all operations
+- `.env` / `.env.example` - Environment variables
+- `package.json` - Node.js dependencies and scripts
+- `tsconfig.json` - TypeScript configuration
+- `vitest.config.ts` - Vitest test configuration
+- `requirements.txt` - Python dependencies
+- `.env.production` - Production environment variables

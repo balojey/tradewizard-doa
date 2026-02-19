@@ -1,42 +1,45 @@
-# TradeWizard Product Overview
+# Product Overview
 
-TradeWizard is an AI-powered prediction trading platform that provides intelligent analysis and trading recommendations for real-world political and economic outcomes on Polymarket.
+TradeWizard is an AI-powered prediction trading platform that provides intelligent analysis and trading recommendations for real-world outcomes on Polymarket.
 
 ## Core Value Proposition
 
-TradeWizard transforms prediction markets from speculative guessing into guided, intelligence-driven trading by providing:
-
-- **Multi-Agent AI Analysis**: Specialized AI agents analyze markets from different perspectives (news, polling, market dynamics, sentiment, risk)
-- **Explainable Recommendations**: Clear trade signals with reasoning, catalysts, and risk scenarios
-- **Real Market Integration**: Direct integration with regulated Polymarket infrastructure
-- **Professional-Grade Intelligence**: Bloomberg Terminal-style analytics for prediction markets
+Transforms prediction markets from speculative guessing into guided, intelligence-driven trading through multi-agent AI analysis.
 
 ## Key Components
 
-### Backend (tradewizard-agents)
-Multi-agent system built on LangGraph that:
-- Ingests market data from Polymarket APIs
-- Runs specialized AI agents for market analysis
-- Generates structured trade recommendations
-- Stores analysis results in Supabase database
+- **tradewizard-agents**: Multi-agent backend system (Node.js + LangGraph) that orchestrates specialized AI agents for market analysis
+- **tradewizard-frontend**: Web application (Next.js + React) providing user interface for market discovery and trading
+- **doa**: Python-based replication of the multi-agent system using Digital Ocean's Gradient AI Platform
 
-### Frontend (tradewizard-frontend)
-Next.js web application that:
-- Displays AI-generated market intelligence
-- Provides seamless trading interface via Magic Link authentication
-- Shows real-time market data and recommendations
-- Manages user portfolios and trading sessions
+## Multi-Agent Intelligence System
 
-## Target Users
+The platform uses specialized AI agents that analyze markets from multiple perspectives:
 
-- Prediction market power users seeking analytical edge
-- Politically engaged retail traders
-- Crypto-native traders looking for regulated real-world exposure
-- Data-driven investors interested in event-driven markets
+- Market microstructure and liquidity analysis
+- Probability baseline estimation
+- Risk assessment and tail risk modeling
+- Breaking news and event impact analysis
+- Polling intelligence and historical patterns
+- Media and social sentiment tracking
+- Price momentum and mean reversion signals
+- Catalyst identification and narrative velocity
 
-## Business Model
+## Workflow
 
-SaaS subscription tiers for AI trading intelligence:
-- Starter: Basic market insights and probability analysis
-- Pro: Full strategy recommendations and risk modeling
-- Elite: Advanced agents and early signal detection
+1. **Market Ingestion**: Fetch market data from Polymarket APIs
+2. **Memory Retrieval**: Load historical agent signals for context
+3. **Parallel Agent Execution**: All agents analyze simultaneously
+4. **Thesis Construction**: Build bull and bear theses
+5. **Cross-Examination**: Adversarial testing of assumptions
+6. **Consensus Engine**: Calculate unified probability estimate
+7. **Recommendation Generation**: Create actionable trade signals with entry/exit zones and risk assessment
+
+## Key Features
+
+- Explainable AI recommendations with clear reasoning
+- Adversarial debate protocol to prevent groupthink
+- Real-time data integration (Polymarket, NewsData.io)
+- Full observability with Opik integration
+- Agent memory system for closed-loop analysis
+- Autonomous tool-calling agents that fetch data dynamically

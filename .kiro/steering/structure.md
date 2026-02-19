@@ -1,196 +1,198 @@
-# TradeWizard Project Structure
+# Project Structure
 
-## Repository Organization
-
-TradeWizard is organized as a monorepo with two main applications and shared documentation:
+## Repository Layout
 
 ```
-├── tradewizard-agents/     # Backend multi-agent system
-├── tradewizard-frontend/   # Frontend web application  
+tradewizard/
+├── tradewizard-agents/     # Node.js multi-agent backend
+├── tradewizard-frontend/   # Next.js web application
+├── doa/                    # Python DOA replication
 ├── docs/                   # Product and technical documentation
-├── .kiro/                  # Kiro configuration and specs
-└── *.json                  # Root-level market data files
+└── .kiro/                  # AI assistant configuration
+    ├── specs/              # Feature specifications
+    ├── steering/           # Steering rules
+    └── settings/           # MCP and other settings
 ```
 
-## Backend Structure (tradewizard-agents/)
-
-### Core Directories
+## Backend Structure (tradewizard-agents)
 
 ```
-src/
-├── nodes/              # LangGraph node implementations
-│   ├── market-ingestion.ts      # Polymarket data ingestion
-│   ├── agents.ts                # Multi-agent analysis nodes
-│   ├── thesis-construction.ts   # Bull/bear thesis generation
-│   ├── cross-examination.ts     # Adversarial testing
-│   ├── consensus-engine.ts      # Probability consensus
-│   └── recommendation-generation.ts # Final trade recommendations
-├── models/             # Data models and type definitions
-│   ├── types.ts               # TypeScript interfaces
-│   ├── schemas.ts             # Zod validation schemas
-│   └── state.ts               # LangGraph state management
-├── utils/              # Utility functions and integrations
-│   ├── polymarket-client.ts   # Polymarket API wrapper
-│   ├── newsdata-*.ts          # News data integration
-│   ├── audit-logger.ts        # Audit trail logging
-│   └── enhanced-*.ts          # Enhanced feature implementations
-├── config/             # Configuration management
-├── database/           # Database utilities and migrations
-│   ├── persistence.ts         # Data persistence layer
-│   ├── supabase-client.ts     # Supabase integration
-│   └── migrations/            # Database schema migrations
-├── workflow.ts         # Main LangGraph workflow definition
-├── cli.ts             # Command-line interface
-├── monitor.ts         # Monitoring service
-└── index.ts           # Application entry point
+tradewizard-agents/
+├── src/
+│   ├── nodes/              # LangGraph workflow nodes
+│   │   ├── market-ingestion.ts
+│   │   ├── memory-retrieval.ts
+│   │   ├── agents.ts       # Intelligence agent nodes
+│   │   ├── thesis-construction.ts
+│   │   ├── cross-examination.ts
+│   │   ├── consensus-engine.ts
+│   │   └── recommendation-generation.ts
+│   ├── agents/             # Agent implementations
+│   │   ├── breaking-news.ts
+│   │   ├── media-sentiment.ts
+│   │   ├── polling-intelligence.ts
+│   │   └── ... (other agents)
+│   ├── models/             # Data models and types
+│   │   ├── types.ts        # TypeScript interfaces
+│   │   ├── schemas.ts      # Zod validation schemas
+│   │   └── state.ts        # LangGraph state definition
+│   ├── tools/              # LangChain tools for autonomous agents
+│   │   ├── newsdata/       # NewsData.io tools
+│   │   └── polymarket/     # Polymarket tools
+│   ├── database/           # Database layer
+│   │   ├── supabase.ts     # Supabase client
+│   │   ├── persistence.ts  # Data persistence
+│   │   ├── memory-retrieval.ts  # Agent memory system
+│   │   └── migrate.ts      # Database migrations
+│   ├── utils/              # Utility functions
+│   │   ├── polymarket-client.ts
+│   │   ├── audit-logger.ts
+│   │   ├── timestamp-formatter.ts
+│   │   └── opik-integration.ts
+│   ├── config/             # Configuration management
+│   │   └── index.ts
+│   ├── workflow.ts         # LangGraph workflow definition
+│   ├── cli.ts              # CLI interface
+│   ├── monitor.ts          # Automated monitoring service
+│   └── index.ts            # Entry point
+├── scripts/                # Utility scripts
+│   ├── e2e-test.ts
+│   └── run-24h-test.ts
+├── dist/                   # Compiled JavaScript (generated)
+├── docs/                   # Backend documentation
+├── .env.example            # Environment template
+├── package.json
+├── tsconfig.json
+└── vitest.config.ts
 ```
 
-### Supporting Directories
+## Python Backend Structure (doa)
 
 ```
-scripts/               # Utility scripts
-├── e2e-test.ts       # End-to-end testing
-├── run-24h-test.ts   # Long-running tests
-└── migrate-news-api.ts # Data migration scripts
-
-docs/                 # Backend-specific documentation
-├── E2E_*.md         # End-to-end testing guides
-├── DEPLOYMENT.md    # Deployment instructions
-└── *.md             # Various technical guides
-
-supabase/            # Supabase configuration
-├── migrations/      # Database migrations
-└── config.toml      # Supabase project config
+doa/
+├── agents/                 # Intelligence agent implementations
+│   ├── agent_factory.py
+│   ├── autonomous_agent_factory.py
+│   ├── breaking_news.py
+│   ├── catalyst.py
+│   ├── event_impact.py
+│   ├── historical_pattern.py
+│   ├── market_microstructure.py
+│   ├── mean_reversion.py
+│   ├── media_sentiment.py
+│   ├── momentum.py
+│   ├── narrative_velocity.py
+│   ├── polling_intelligence.py
+│   ├── probability_baseline.py
+│   ├── risk_assessment.py
+│   ├── social_sentiment.py
+│   └── tail_risk.py
+├── nodes/                  # LangGraph workflow nodes
+│   ├── agent_signal_fusion.py
+│   ├── consensus_engine.py
+│   ├── cross_examination.py
+│   ├── dynamic_agent_selection.py
+│   ├── keyword_extraction.py
+│   ├── market_ingestion.py
+│   ├── memory_retrieval.py
+│   ├── recommendation_generation.py
+│   └── thesis_construction.py
+├── models/                 # Data models
+│   ├── state.py           # LangGraph state
+│   └── types.py           # Pydantic models
+├── tools/                  # External integrations
+│   ├── newsdata_client.py
+│   └── polymarket_client.py
+├── database/               # Persistence layer
+│   ├── supabase_client.py
+│   ├── persistence.py
+│   ├── memory_retrieval.py
+│   └── migrations/
+│       └── 001_initial_schema.sql
+├── config.py               # Configuration management
+├── prompts.py              # Agent prompts
+├── main.py                 # Main workflow and CLI
+├── requirements.txt
+└── .env.example
 ```
 
-## Frontend Structure (tradewizard-frontend/)
-
-### App Router Structure (Next.js 16)
+## Frontend Structure (tradewizard-frontend)
 
 ```
-app/
-├── api/                    # API routes
-│   ├── polymarket/        # Polymarket proxy endpoints
-│   └── tradewizard/       # TradeWizard-specific APIs
-├── market/[slug]/         # Individual market pages
-├── performance/           # Performance analytics
-├── positions/             # User positions
-├── orders/               # Order management
-├── wallet/               # Wallet management
-└── page.tsx              # Homepage
+tradewizard-frontend/
+├── app/                    # Next.js App Router
+│   ├── layout.tsx         # Root layout
+│   ├── page.tsx           # Home page
+│   ├── markets/           # Market pages
+│   ├── analysis/          # Analysis pages
+│   └── api/               # API routes
+├── components/             # React components
+│   ├── ui/                # UI primitives
+│   ├── markets/           # Market-specific components
+│   └── analysis/          # Analysis components
+├── lib/                    # Utility libraries
+│   ├── supabase.ts        # Supabase client
+│   ├── polymarket.ts      # Polymarket client
+│   └── magic.ts           # Magic Link auth
+├── hooks/                  # Custom React hooks
+├── types/                  # TypeScript types
+├── public/                 # Static assets
+└── styles/                 # Global styles
 ```
 
-### Component Architecture
+## Key Architectural Patterns
 
-```
-components/
-├── Trading/              # Trading-related components
-│   ├── Markets/         # Market discovery and display
-│   │   ├── MarketCard.tsx           # Individual market cards
-│   │   ├── AIInsightsPanel.tsx      # AI recommendation display
-│   │   ├── RecommendationBadge.tsx  # Quick recommendation preview
-│   │   └── MarketSearch.tsx         # Market filtering/search
-│   ├── TradeRecommendation/  # AI recommendation components
-│   ├── Orders/              # Order management UI
-│   └── Positions/           # Position tracking UI
-├── Performance/          # Performance analytics components
-├── Header/              # Navigation and wallet info
-├── TradingSession/      # Trading session management
-└── shared/              # Reusable UI components
-    ├── Card.tsx         # Base card component
-    ├── Badge.tsx        # Status badges
-    ├── LoadingState.tsx # Loading indicators
-    └── ErrorState.tsx   # Error handling UI
-```
+### LangGraph State Management
+- All workflow nodes share a common `GraphState` object
+- State flows through nodes sequentially or in parallel
+- Checkpointers enable persistence and resumability
 
-### Supporting Directories
+### Agent Autonomy
+- Agents use LangChain tool-calling (ReAct pattern)
+- Tools are bound to agent LLMs at runtime
+- Agents autonomously decide which tools to call
 
-```
-hooks/                   # Custom React hooks
-├── useTradeRecommendation.ts  # AI recommendation fetching
-├── useMarkets.ts             # Market data management
-├── useTradingSession.ts      # Trading session orchestration
-└── useClobClient.ts          # Polymarket CLOB integration
+### Memory System
+- Historical agent signals stored in database
+- Retrieved before each analysis for context
+- Enables closed-loop learning and consistency
 
-lib/                    # Utility libraries
-├── supabase.ts        # Supabase client configuration
-├── magic.ts           # Magic Link authentication
-└── database.types.ts  # Auto-generated DB types
+### Error Handling
+- Graceful degradation at every layer
+- Partial failures don't crash the pipeline
+- Comprehensive audit logging for debugging
 
-providers/             # React context providers
-├── WalletProvider.tsx # Wallet state management
-├── TradingProvider.tsx # Trading session context
-└── QueryProvider.tsx  # React Query configuration
-
-utils/                 # Pure utility functions
-├── formatting.ts      # Data formatting helpers
-├── validation.ts      # Input validation
-└── marketFilters.ts   # Market filtering logic
-```
-
-## Shared Resources
-
-### Documentation (docs/)
-
-```
-docs/
-├── TradeWizard.md                    # Product overview
-├── TradeWizard Debate Protocol.md    # AI agent debate system
-├── Trade Wizard — Market Debate League.md # System specification
-├── newsdata-docs.md                  # News data integration
-└── tradewizard-agentic-workflow.png  # Architecture diagram
-```
-
-### Kiro Configuration (.kiro/)
-
-```
-.kiro/
-├── specs/              # Feature specifications
-│   ├── advanced-agent-league/
-│   ├── market-intelligence-engine/
-│   ├── polymarket-integration-enhancement/
-│   └── */              # Other feature specs
-└── steering/           # AI assistant guidance
-    ├── product.md      # Product overview
-    ├── tech.md         # Technical stack
-    └── structure.md    # This file
-```
+### Multi-Provider LLM Support
+- Abstract LLM factory pattern
+- Different agents can use different providers
+- Single-provider mode for cost optimization
 
 ## File Naming Conventions
 
-### Backend (TypeScript/Node.js)
-- **Kebab-case** for files: `market-ingestion.ts`, `consensus-engine.ts`
-- **Test files**: `*.test.ts` for unit tests, `*.property.test.ts` for property-based tests
-- **Integration tests**: `*.integration.test.ts`, `*.e2e.test.ts`
-- **Configuration**: `*.config.ts`, `*.config.js`
+### TypeScript/JavaScript
+- kebab-case for files: `market-ingestion.ts`
+- PascalCase for classes: `MarketBriefingDocument`
+- camelCase for functions/variables: `analyzeMarket`
 
-### Frontend (React/Next.js)
-- **PascalCase** for components: `MarketCard.tsx`, `AIInsightsPanel.tsx`
-- **camelCase** for hooks: `useTradeRecommendation.ts`, `useMarkets.ts`
-- **kebab-case** for utilities: `market-filters.ts`, `formatting.ts`
-- **Route files**: `page.tsx`, `layout.tsx`, `route.ts`
+### Python
+- snake_case for files: `market_ingestion.py`
+- PascalCase for classes: `MarketBriefingDocument`
+- snake_case for functions/variables: `analyze_market`
 
-## Import/Export Patterns
+## Test File Locations
 
-### Barrel Exports
-- `src/nodes/index.ts` - Exports all LangGraph nodes
-- `components/shared/index.ts` - Exports reusable UI components
-- `hooks/index.ts` - Exports custom hooks
+### Backend (tradewizard-agents)
+- Co-located with source: `src/nodes/market-ingestion.test.ts`
+- Property tests: `*.property.test.ts`
+- Integration tests: `*.integration.test.ts`
 
-### Relative Imports
-- Use relative imports within the same feature directory
-- Use absolute imports for cross-feature dependencies
-- Prefer named exports over default exports for better tree-shaking
+### Python (doa)
+- Co-located with source: `agents/test_agent_factory.py`
+- Test prefix: `test_*.py`
 
-## Testing Organization
+## Configuration Files Location
 
-### Backend Testing
-- **Unit tests**: Co-located with source files (`*.test.ts`)
-- **Property tests**: Separate files (`*.property.test.ts`)
-- **Integration tests**: Feature-specific directories
-- **E2E tests**: `scripts/` directory for complex workflows
-
-### Frontend Testing
-- **Component tests**: `__tests__/` directories within feature folders
-- **Hook tests**: Co-located with hook files
-- **Integration tests**: `app/` level for full user flows
+- Root `.env` files for each project
+- `.env.example` templates for documentation
+- `.env.production` for production overrides
+- `.kiro/settings/` for AI assistant configuration
