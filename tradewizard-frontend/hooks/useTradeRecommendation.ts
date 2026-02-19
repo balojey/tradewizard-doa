@@ -49,9 +49,10 @@ function transformRecommendation(
   market: MarketRow,
   agentSignals: AgentSignalRow[]
 ): TradeRecommendation {
-  // Parse JSON fields with defensive checks
-  const catalysts = Array.isArray(rec.catalysts) ? rec.catalysts : [];
-  const risks = Array.isArray(rec.risks) ? rec.risks : [];
+  // Parse JSON fields - catalysts and risks are stored as string arrays in the database
+  // They're typed as Json in Supabase types, but the actual data is string[]
+  const catalysts = (rec.catalysts as string[]) || [];
+  const risks = (rec.risks as string[]) || [];
   
   // Map database direction to frontend action
   const action = rec.direction as 'LONG_YES' | 'LONG_NO' | 'NO_TRADE';
