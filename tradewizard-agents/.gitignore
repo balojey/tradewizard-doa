@@ -49,3 +49,4 @@ pids/
 *.pid.lock
 
 *.pem
+instance-info.txt
