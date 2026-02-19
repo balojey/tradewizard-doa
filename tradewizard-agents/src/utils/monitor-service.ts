@@ -344,6 +344,13 @@ export class AutomatedMarketMonitor implements MonitorService {
 
   /**
    * Discovery and analysis cycle
+   * 
+   * NOTE: Market updates from database are currently DISABLED.
+   * The monitor only discovers and analyzes NEW markets from the Gamma API.
+   * This prevents duplicate analysis when "new" markets are already in the database.
+   * 
+   * To re-enable updates: Uncomment the updateExistingMarkets() call below
+   * and adjust quota allocation logic.
    */
   async discoverAndAnalyze(): Promise<void> {
     console.log('[MonitorService] Starting discovery and analysis cycle');
@@ -355,11 +362,10 @@ export class AutomatedMarketMonitor implements MonitorService {
       // Get configured max markets per cycle from environment (user has full control)
       const maxMarkets = parseInt(process.env.MAX_MARKETS_PER_CYCLE || '3', 10);
       
-      console.log(`[MonitorService] Analyzing up to ${maxMarkets} markets total per cycle (configured via MAX_MARKETS_PER_CYCLE)`);
+      console.log(`[MonitorService] Analyzing up to ${maxMarkets} NEW markets per cycle (updates disabled)`);
 
-      // Discover new markets (allocate half the quota to discovery, minimum 1)
-      const discoveryQuota = Math.max(1, Math.floor(maxMarkets / 2));
-      const markets = await this.discovery.discoverMarkets(discoveryQuota);
+      // Discover new markets (use full quota for discovery since updates are disabled)
+      const markets = await this.discovery.discoverMarkets(maxMarkets);
       console.log(`[MonitorService] Discovered ${markets.length} new markets for analysis`);
       
       // Record discovery in Opik
@@ -380,13 +386,25 @@ export class AutomatedMarketMonitor implements MonitorService {
         }
       }
 
-      // Update existing markets with remaining quota
-      const updateQuota = maxMarkets - markets.length;
-      if (updateQuota > 0) {
-        await this.updateExistingMarkets(updateQuota);
-      } else {
-        console.log('[MonitorService] No quota remaining for market updates this cycle');
-      }
+      // DISABLED: Update existing markets from database
+      // 
+      // Reason: Temporary disable to focus on new market discovery only.
+      // This prevents duplicate analysis when "new" markets from Gamma API
+      // are already in the database from previous cycles.
+      // 
+      // To re-enable:
+      // 1. Uncomment the code below
+      // 2. Adjust quota allocation (e.g., split maxMarkets between discovery and updates)
+      // 3. Consider adding deduplication logic to check if discovered markets are already in DB
+      // 
+      // const updateQuota = maxMarkets - markets.length;
+      // if (updateQuota > 0) {
+      //   await this.updateExistingMarkets(updateQuota);
+      // } else {
+      //   console.log('[MonitorService] No quota remaining for market updates this cycle');
+      // }
+      
+      console.log('[MonitorService] Market updates are currently disabled - only analyzing new markets');
 
       // End cycle and log metrics
       const cycleMetrics = this.opikIntegration.endCycle();
@@ -412,6 +430,14 @@ export class AutomatedMarketMonitor implements MonitorService {
 
   /**
    * Update existing markets
+   * 
+   * NOTE: This method is currently NOT CALLED by discoverAndAnalyze().
+   * It is preserved for future re-enablement when market updates are needed.
+   * 
+   * To re-enable:
+   * 1. Uncomment the call in discoverAndAnalyze()
+   * 2. Adjust quota allocation between discovery and updates
+   * 3. Consider adding deduplication logic
    * 
    * @param maxUpdates - Maximum number of markets to update (respects quota allocation)
    */

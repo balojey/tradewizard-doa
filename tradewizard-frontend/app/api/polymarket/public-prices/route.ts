@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     try {
       // Fetch markets data from Gamma API to get current prices
       const response = await fetch(
-        `https://gamma-api.polymarket.com/events?closed=false&limit=100`,
+        `https://gamma-api.polymarket.com/markets?closed=false&limit=100`,
         {
           headers: {
             "Content-Type": "application/json",
@@ -36,36 +36,32 @@ export async function POST(request: NextRequest) {
         throw new Error(`Gamma API error: ${response.status}`);
       }
 
-      const events = await response.json();
+      const markets = await response.json();
 
       // Extract prices from market data
-      for (const event of events) {
-        if (!event.markets) continue;
+      for (const market of markets) {
+        if (!market.clobTokenIds || !market.outcomePrices) continue;
 
-        for (const market of event.markets) {
-          if (!market.clobTokenIds || !market.outcomePrices) continue;
+        try {
+          const marketTokenIds = JSON.parse(market.clobTokenIds);
+          const prices = JSON.parse(market.outcomePrices);
 
-          try {
-            const marketTokenIds = JSON.parse(market.clobTokenIds);
-            const prices = JSON.parse(market.outcomePrices);
-
-            marketTokenIds.forEach((tokenId: string, index: number) => {
-              if (tokenIds.includes(tokenId) && prices[index]) {
-                const price = parseFloat(prices[index]);
-                if (price > 0 && price < 1) {
-                  // Use the market price as both bid and ask (no spread data available)
-                  priceMap[tokenId] = {
-                    bidPrice: price,
-                    askPrice: price,
-                    midPrice: price,
-                    spread: 0,
-                  };
-                }
+          marketTokenIds.forEach((tokenId: string, index: number) => {
+            if (tokenIds.includes(tokenId) && prices[index]) {
+              const price = parseFloat(prices[index]);
+              if (price > 0 && price < 1) {
+                // Use the market price as both bid and ask (no spread data available)
+                priceMap[tokenId] = {
+                  bidPrice: price,
+                  askPrice: price,
+                  midPrice: price,
+                  spread: 0,
+                };
               }
-            });
-          } catch (error) {
-            console.warn(`Failed to parse market data for market ${market.id}`);
-          }
+            }
+          });
+        } catch (error) {
+          console.warn(`Failed to parse market data for market ${market.id}`);
         }
       }
 
