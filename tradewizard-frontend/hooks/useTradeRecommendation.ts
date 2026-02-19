@@ -49,9 +49,9 @@ function transformRecommendation(
   market: MarketRow,
   agentSignals: AgentSignalRow[]
 ): TradeRecommendation {
-  // Parse JSON fields
-  const catalysts = rec.catalysts as string[] || [];
-  const risks = rec.risks as string[] || [];
+  // Parse JSON fields with defensive checks
+  const catalysts = Array.isArray(rec.catalysts) ? rec.catalysts : [];
+  const risks = Array.isArray(rec.risks) ? rec.risks : [];
   
   // Map database direction to frontend action
   const action = rec.direction as 'LONG_YES' | 'LONG_NO' | 'NO_TRADE';
