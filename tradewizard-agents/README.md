@@ -470,8 +470,6 @@ MEMORY_RETRY_ATTEMPTS=3
 
 See [Agent Memory System Documentation](./src/database/MEMORY_SYSTEM_CONFIG.md) for complete details.
 
-**Quick Start**: See [Memory System Quick Start Guide](./docs/MEMORY_SYSTEM_QUICK_START.md) for 5-minute setup.
-
 ### Human-Readable Timestamp Formatting
 
 The system automatically converts ISO 8601 timestamps to natural language format when presenting data to LLM agents, improving temporal comprehension:
@@ -520,7 +518,7 @@ setConfig({ timezone: 'America/Los_Angeles' });
 setConfig({ relativeThresholdDays: 14 });
 ```
 
-See [Timestamp Formatting Documentation](./docs/TIMESTAMP_FORMATTING.md) for complete API reference and examples.
+See [Timestamp Formatting Documentation](./src/utils/TIMESTAMP_FORMATTING.md) for complete API reference and examples.
 
 ### Consensus Configuration
 
@@ -671,7 +669,8 @@ tradewizard-agents/
 ├── src/
 │   ├── nodes/              # LangGraph node implementations
 │   │   ├── market-ingestion.ts
-│   │   ├── agents.ts       # Intelligence agent nodes
+│   │   ├── memory-retrieval.ts
+│   │   ├── agents.ts       # Intelligence agent nodes (all agents defined here)
 │   │   ├── thesis-construction.ts
 │   │   ├── cross-examination.ts
 │   │   ├── consensus-engine.ts
@@ -680,16 +679,31 @@ tradewizard-agents/
 │   │   ├── types.ts        # TypeScript interfaces
 │   │   ├── schemas.ts      # Zod schemas
 │   │   └── state.ts        # LangGraph state definition
+│   ├── tools/              # LangChain tools for autonomous agents
+│   │   ├── newsdata-tools.ts
+│   │   └── polymarket-tools.ts
+│   ├── database/           # Database layer
+│   │   ├── supabase.ts
+│   │   ├── persistence.ts
+│   │   ├── memory-retrieval.ts
+│   │   └── migrate.ts
 │   ├── utils/              # Utility functions
 │   │   ├── polymarket-client.ts
-│   │   └── audit-logger.ts
+│   │   ├── audit-logger.ts
+│   │   ├── timestamp-formatter.ts
+│   │   └── opik-integration.ts
 │   ├── config/             # Configuration management
 │   │   └── index.ts
 │   ├── schemas/            # Additional Zod schemas
 │   ├── workflow.ts         # LangGraph workflow definition
 │   ├── cli.ts              # CLI interface
+│   ├── cli-monitor.ts      # Monitor service CLI
+│   ├── monitor.ts          # Automated monitoring service
 │   └── index.ts            # Entry point
-├── dist/                   # Compiled JavaScript
+├── scripts/                # Utility scripts
+│   ├── e2e-test.ts
+│   └── run-24h-test.ts
+├── dist/                   # Compiled JavaScript (generated)
 ├── docs/                   # Additional documentation
 ├── .env.example            # Environment variable template
 ├── package.json
@@ -782,7 +796,7 @@ npm test -- --coverage
 
 ### End-to-End Testing
 
-For the Automated Market Monitor service, comprehensive E2E testing is available:
+For the Automated Market Monitor service, E2E testing is available:
 
 ```bash
 # Run E2E test suite once
@@ -791,12 +805,6 @@ npm run test:e2e
 # Run continuous 48-hour monitoring
 npm run test:e2e:continuous
 ```
-
-**E2E Testing Documentation:**
-- **Quick Start**: `docs/E2E_QUICK_START.md` - 15-minute setup and testing
-- **Full Guide**: `docs/E2E_TESTING_GUIDE.md` - Comprehensive 13-test guide
-- **Deployment Checklist**: `docs/E2E_DEPLOYMENT_CHECKLIST.md` - Complete deployment checklist
-- **Test Summary**: `docs/E2E_TEST_SUMMARY.md` - Overview of E2E testing implementation
 
 The E2E tests verify:
 - ✅ Market discovery and analysis
@@ -1108,19 +1116,28 @@ View cost breakdown in Opik:
 
 ### Additional Resources
 
+#### Core Documentation
 - **[CLI Documentation](./CLI.md)** - Complete CLI reference
+- **[Documentation Hub](./docs/README.md)** - Central documentation index
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
+- **[Runbook](./docs/RUNBOOK.md)** - Operational procedures and troubleshooting
+
+#### Feature Documentation
 - **[Autonomous News Agents](./docs/AUTONOMOUS_NEWS_AGENTS.md)** - Autonomous news intelligence agents with tool-calling capabilities
 - **[Agent Memory System](./src/database/MEMORY_SYSTEM_CONFIG.md)** - Closed-loop analysis with historical context
-- **[Memory System Quick Start](./docs/MEMORY_SYSTEM_QUICK_START.md)** - 5-minute setup guide
-- **[Memory System Examples](./docs/MEMORY_SYSTEM_EXAMPLES.md)** - Practical usage examples and code samples
-- **[Timestamp Formatting](./docs/TIMESTAMP_FORMATTING.md)** - Human-readable timestamp formatting for AI agents
-- **[LLM Provider Setup Guide](./docs/LLM_PROVIDERS.md)** - Setup instructions for OpenAI, Anthropic, Google, and Amazon Nova
-- **[Nova Troubleshooting Guide](./docs/NOVA_TROUBLESHOOTING.md)** - Amazon Nova integration troubleshooting
+- **[Timestamp Formatting](./src/utils/TIMESTAMP_FORMATTING.md)** - Human-readable timestamp formatting for AI agents
+- **[Workflow Service Logging](./docs/WORKFLOW_SERVICE_LOGGING.md)** - Remote workflow execution logging and monitoring
 - **[Database Module](./src/database/README.md)** - Supabase PostgreSQL integration
-- **[Direct Market Discovery Migration](./docs/DIRECT_MARKET_DISCOVERY_MIGRATION.md)** - Migration guide for direct market fetching
-- **[Design Document](./.kiro/specs/market-intelligence-engine/design.md)** - System architecture and design decisions
-- **[Requirements Document](./.kiro/specs/market-intelligence-engine/requirements.md)** - Functional requirements
-- **[Tasks Document](./.kiro/specs/market-intelligence-engine/tasks.md)** - Implementation plan
+
+#### Integration Guides
+- **[LLM Provider Setup Guide](./docs/LLM_PROVIDERS.md)** - Setup instructions for OpenAI, Anthropic, Google, and Amazon Nova
+- **[Opik Integration Guide](./docs/OPIK_GUIDE.md)** - Observability and tracing setup
+- **[External Data Sources](./docs/EXTERNAL_DATA_SOURCES.md)** - NewsData.io and Polymarket API integration
+- **[Autonomous Agents Migration](./docs/AUTONOMOUS_AGENTS_MIGRATION.md)** - Migration guide for autonomous tool-calling agents
+
+#### Advanced Topics
+- **[Advanced Agent League](./docs/ADVANCED_AGENT_LEAGUE.md)** - Advanced multi-agent patterns and strategies
+- **[Examples](./docs/EXAMPLES.md)** - Code examples and usage patterns
 
 ### External Documentation
 
