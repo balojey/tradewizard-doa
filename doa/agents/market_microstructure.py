@@ -12,10 +12,11 @@ The agent focuses on:
 - Price discovery efficiency
 """
 
-from prompts import MARKET_MICROSTRUCTURE_PROMPT
+from prompts import get_market_microstructure_prompt
 
 # Agent identifier used in the workflow
 AGENT_NAME = "market_microstructure"
 
-# System prompt defining the agent's analysis perspective
-SYSTEM_PROMPT = MARKET_MICROSTRUCTURE_PROMPT
+# System prompt defining the agent's analysis perspective (dynamic with timestamp)
+SYSTEM_PROMPT = get_market_microstructure_prompt()
+

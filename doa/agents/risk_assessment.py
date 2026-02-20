@@ -12,10 +12,10 @@ The agent focuses on:
 - Resolution ambiguity and edge cases
 """
 
-from prompts import RISK_ASSESSMENT_PROMPT
+from prompts import get_risk_assessment_prompt
 
 # Agent identifier used in the workflow
 AGENT_NAME = "risk_assessment"
 
-# System prompt defining the agent's analysis perspective
-SYSTEM_PROMPT = RISK_ASSESSMENT_PROMPT
+# System prompt defining the agent's analysis perspective (dynamic with timestamp)
+SYSTEM_PROMPT = get_risk_assessment_prompt()

@@ -213,10 +213,10 @@ def create_agent_node(
         Async function that takes GraphState and returns state update dict
         
     Example:
-        >>> from prompts import MARKET_MICROSTRUCTURE_PROMPT
+        >>> from prompts import get_market_microstructure_prompt
         >>> market_microstructure_node = create_agent_node(
         ...     agent_name="market_microstructure",
-        ...     system_prompt=MARKET_MICROSTRUCTURE_PROMPT,
+        ...     system_prompt=get_market_microstructure_prompt(),
         ...     config=engine_config
         ... )
     """
@@ -255,8 +255,23 @@ def create_agent_node(
         # Format market briefing
         market_briefing = format_market_briefing(mbd)
         
-        # Construct full prompt with memory context
-        full_system_prompt = f"{system_prompt}\n\n{memory_str}"
+        # Enhanced prompt with memory context and explicit instructions (matching TypeScript implementation)
+        enhanced_system_prompt = f"""{system_prompt}
+
+## Your Previous Analysis
+
+{memory_str}
+
+## Instructions for Using Memory Context
+
+When you have previous analysis available:
+1. Review your previous analysis before generating new analysis
+2. Identify what has changed since your last analysis (market conditions, probabilities, key drivers)
+3. If your view has changed significantly, explain the reasoning for the change in your key drivers
+4. If your view remains consistent, acknowledge the continuity and reinforce your reasoning
+5. Reference specific changes from previous analysis when relevant
+
+Your analysis should show thoughtful evolution over time, not random fluctuation."""
         
         # Create LLM instance with structured output
         try:
@@ -279,7 +294,7 @@ def create_agent_node(
         async def execute_agent() -> AgentSignal:
             """Execute the agent with retry logic."""
             messages = [
-                SystemMessage(content=full_system_prompt),
+                SystemMessage(content=enhanced_system_prompt),
                 HumanMessage(content=market_briefing)
             ]
             

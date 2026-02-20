@@ -12,10 +12,10 @@ The agent focuses on:
 - Conditional probability analysis
 """
 
-from prompts import PROBABILITY_BASELINE_PROMPT
+from prompts import get_probability_baseline_prompt
 
 # Agent identifier used in the workflow
 AGENT_NAME = "probability_baseline"
 
-# System prompt defining the agent's analysis perspective
-SYSTEM_PROMPT = PROBABILITY_BASELINE_PROMPT
+# System prompt defining the agent's analysis perspective (dynamic with timestamp)
+SYSTEM_PROMPT = get_probability_baseline_prompt()

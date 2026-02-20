@@ -1,5 +1,6 @@
 """Recommendation generation node for LangGraph workflow."""
 
+import json
 import logging
 import time
 from typing import Any, Dict, Optional, Tuple
@@ -16,6 +17,7 @@ from models.types import (
     RecommendationError,
 )
 from config import EngineConfig
+from utils.llm_factory import create_llm_instance
 
 logger = logging.getLogger(__name__)
 
@@ -288,10 +290,11 @@ def generate_explanation(
     market_probability: float,
     disagreement_index: float,
     regime: str,
-    state: GraphState
+    state: GraphState,
+    config: EngineConfig
 ) -> TradeExplanation:
     """
-    Generate trade explanation with summary, thesis, catalysts, and failure scenarios.
+    Generate trade explanation using LLM for rich, contextual summaries.
     
     Args:
         action: Trade action
@@ -301,6 +304,7 @@ def generate_explanation(
         disagreement_index: Disagreement index
         regime: Probability regime
         state: Current workflow state
+        config: Engine configuration
         
     Returns:
         TradeExplanation object
@@ -309,6 +313,7 @@ def generate_explanation(
     debate_record = state.get("debate_record")
     bull_thesis = state.get("bull_thesis")
     bear_thesis = state.get("bear_thesis")
+    mbd = state.get("mbd")
     
     # Convert dictionaries to AgentSignal objects if needed
     agent_signals = []
@@ -318,7 +323,7 @@ def generate_explanation(
         else:
             agent_signals.append(signal)
     
-    # Generate summary
+    # Generate summary for NO_TRADE
     if action == "NO_TRADE":
         summary = (
             f"No trade recommended. Market fairly priced with {edge:.1%} edge, "
@@ -336,80 +341,170 @@ def generate_explanation(
             failure_scenarios=[]
         )
     
-    # Generate summary for trades
-    direction = "YES" if action == "LONG_YES" else "NO"
-    summary = (
-        f"{action.replace('_', ' ')} with {edge:.1%} edge. "
-        f"Consensus at {consensus_probability:.0%} vs market {market_probability:.0%}. "
-    )
-    
-    if disagreement_index < 0.15:
-        summary += f"Strong agent alignment (disagreement {disagreement_index:.2f}) "
-    elif disagreement_index < 0.30:
-        summary += f"Moderate agent alignment (disagreement {disagreement_index:.2f}) "
-    else:
-        summary += f"Significant agent disagreement (disagreement {disagreement_index:.2f}) "
-    
-    if debate_record:
-        if action == "LONG_YES":
-            summary += f"and positive debate score (+{debate_record.bull_score:.1f}) "
-        else:
-            summary += f"and positive debate score (+{debate_record.bear_score:.1f}) "
-    
-    summary += f"support {direction} position."
-    
-    # Generate core thesis
-    if action == "LONG_YES" and bull_thesis:
-        core_thesis = bull_thesis.core_argument
-    elif action == "LONG_NO" and bear_thesis:
-        core_thesis = bear_thesis.core_argument
-    else:
-        # Fallback: synthesize from agent signals
-        yes_signals = [s for s in agent_signals if s.direction == "YES"]
-        no_signals = [s for s in agent_signals if s.direction == "NO"]
+    # Use LLM to generate rich explanation for trades
+    try:
+        # Determine which thesis to use based on action
+        primary_thesis = bull_thesis if action == "LONG_YES" else bear_thesis
+        secondary_thesis = bear_thesis if action == "LONG_YES" else bull_thesis
         
-        if action == "LONG_YES":
-            key_drivers = []
-            for signal in yes_signals[:3]:  # Top 3 YES signals
-                key_drivers.extend(signal.key_drivers[:2])
-            core_thesis = f"Market is underpricing YES outcome. Key factors: {', '.join(key_drivers[:5])}."
+        # Build context for LLM
+        context = {
+            "market": {
+                "question": mbd.question if mbd else "Unknown market",
+                "currentProbability": market_probability,
+                "liquidityScore": mbd.liquidity_score if mbd else 0,
+            },
+            "recommendation": {
+                "action": action,
+                "edge": edge,
+                "consensusProbability": consensus_probability,
+                "disagreementIndex": disagreement_index,
+            },
+            "primaryThesis": {
+                "direction": primary_thesis.direction if primary_thesis else ("YES" if action == "LONG_YES" else "NO"),
+                "coreArgument": primary_thesis.core_argument if primary_thesis else "",
+                "catalysts": primary_thesis.catalysts if primary_thesis else [],
+                "failureConditions": primary_thesis.failure_conditions if primary_thesis else [],
+            } if primary_thesis else None,
+            "secondaryThesis": {
+                "direction": secondary_thesis.direction if secondary_thesis else ("NO" if action == "LONG_YES" else "YES"),
+                "coreArgument": secondary_thesis.core_argument if secondary_thesis else "",
+            } if secondary_thesis else None,
+        }
+        
+        # Create LLM prompt
+        prompt = f"""You are a trade recommendation explainer for prediction markets.
+
+Generate a clear, concise explanation for this trade recommendation.
+
+Context:
+{json.dumps(context, indent=2)}
+
+Your explanation should:
+1. Provide a 2-3 sentence summary explaining the core thesis and why this trade makes sense
+2. Extract the core thesis argument from the primary thesis (or synthesize from context if missing)
+3. Include key catalysts from the thesis (specific events or developments that would drive the outcome)
+4. Include failure scenarios from the thesis (specific conditions that would invalidate the trade)
+5. {'Acknowledge the uncertainty due to agent disagreement' if disagreement_index > 0.15 else 'Omit uncertainty note (low disagreement)'}
+
+IMPORTANT: 
+- Be specific and concrete in catalysts and failure scenarios
+- Avoid generic statements like "No specific catalysts identified" or "No strong signals"
+- If the thesis is weak, synthesize from the market context and probability edge
+- Make the summary compelling and actionable
+
+Respond in JSON format with these fields:
+{{
+  "summary": "2-3 sentence plain language explanation with specific details about the edge and thesis",
+  "coreThesis": "The core argument explaining why this outcome is more likely than the market believes",
+  "keyCatalysts": ["specific catalyst 1", "specific catalyst 2", "specific catalyst 3"],
+  "failureScenarios": ["specific scenario 1", "specific scenario 2", "specific scenario 3"]
+}}"""
+
+        # Create LLM instance
+        llm = create_llm_instance(config.llm)
+        
+        # Invoke LLM
+        from langchain_core.messages import SystemMessage, HumanMessage
+        messages = [
+            SystemMessage(content="You are a helpful assistant that generates trade explanations in JSON format. Always provide specific, actionable insights."),
+            HumanMessage(content=prompt)
+        ]
+        
+        response = llm.invoke(messages)
+        
+        # Parse LLM response
+        content = response.content if hasattr(response, 'content') else str(response)
+        
+        # Try to extract JSON from the response
+        try:
+            # Try direct parse first
+            parsed = json.loads(content)
+        except json.JSONDecodeError:
+            # Try to extract JSON from markdown code blocks
+            import re
+            json_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', content)
+            if json_match:
+                parsed = json.loads(json_match.group(1))
+            else:
+                # Try to find JSON object in the text
+                object_match = re.search(r'\{[\s\S]*\}', content)
+                if object_match:
+                    parsed = json.loads(object_match.group(0))
+                else:
+                    raise ValueError('Could not parse LLM response as JSON')
+        
+        return TradeExplanation(
+            summary=parsed.get("summary", ""),
+            core_thesis=parsed.get("coreThesis", primary_thesis.core_argument if primary_thesis else ""),
+            key_catalysts=parsed.get("keyCatalysts", primary_thesis.catalysts if primary_thesis else []),
+            failure_scenarios=parsed.get("failureScenarios", primary_thesis.failure_conditions if primary_thesis else [])
+        )
+        
+    except Exception as e:
+        logger.warning(f"LLM explanation generation failed: {e}. Falling back to template-based generation.")
+        
+        # Fallback to template-based generation
+        direction = "YES" if action == "LONG_YES" else "NO"
+        summary = (
+            f"{action.replace('_', ' ')} with {edge:.1%} edge. "
+            f"Consensus at {consensus_probability:.0%} vs market {market_probability:.0%}. "
+        )
+        
+        if disagreement_index < 0.15:
+            summary += f"Strong agent alignment (disagreement {disagreement_index:.2f}) "
+        elif disagreement_index < 0.30:
+            summary += f"Moderate agent alignment (disagreement {disagreement_index:.2f}) "
         else:
-            key_drivers = []
-            for signal in no_signals[:3]:  # Top 3 NO signals
-                key_drivers.extend(signal.key_drivers[:2])
-            core_thesis = f"Market is overpricing YES outcome. Key factors: {', '.join(key_drivers[:5])}."
-    
-    # Extract catalysts
-    if action == "LONG_YES" and bull_thesis:
-        key_catalysts = bull_thesis.catalysts
-    elif action == "LONG_NO" and bear_thesis:
-        key_catalysts = bear_thesis.catalysts
-    else:
-        # Fallback: extract from agent signals
-        key_catalysts = []
-        relevant_signals = yes_signals if action == "LONG_YES" else no_signals
-        for signal in relevant_signals[:3]:
-            key_catalysts.extend(signal.key_drivers[:2])
-        key_catalysts = key_catalysts[:5]  # Limit to 5
-    
-    # Extract failure scenarios
-    if action == "LONG_YES" and bull_thesis:
-        failure_scenarios = bull_thesis.failure_conditions
-    elif action == "LONG_NO" and bear_thesis:
-        failure_scenarios = bear_thesis.failure_conditions
-    else:
-        # Fallback: extract risk factors from agent signals
-        failure_scenarios = []
-        for signal in agent_signals[:3]:
-            failure_scenarios.extend(signal.risk_factors[:2])
-        failure_scenarios = failure_scenarios[:5]  # Limit to 5
-    
-    return TradeExplanation(
-        summary=summary,
-        core_thesis=core_thesis,
-        key_catalysts=key_catalysts,
-        failure_scenarios=failure_scenarios
-    )
+            summary += f"Significant agent disagreement (disagreement {disagreement_index:.2f}) "
+        
+        if debate_record:
+            if action == "LONG_YES":
+                summary += f"and positive debate score (+{debate_record.bull_score:.1f}) "
+            else:
+                summary += f"and positive debate score (+{debate_record.bear_score:.1f}) "
+        
+        summary += f"support {direction} position."
+        
+        # Use thesis if available, otherwise synthesize
+        if action == "LONG_YES" and bull_thesis:
+            core_thesis = bull_thesis.core_argument
+            key_catalysts = bull_thesis.catalysts
+            failure_scenarios = bull_thesis.failure_conditions
+        elif action == "LONG_NO" and bear_thesis:
+            core_thesis = bear_thesis.core_argument
+            key_catalysts = bear_thesis.catalysts
+            failure_scenarios = bear_thesis.failure_conditions
+        else:
+            # Synthesize from agent signals
+            yes_signals = [s for s in agent_signals if s.direction == "YES"]
+            no_signals = [s for s in agent_signals if s.direction == "NO"]
+            
+            if action == "LONG_YES":
+                key_drivers = []
+                for signal in yes_signals[:3]:
+                    key_drivers.extend(signal.key_drivers[:2])
+                core_thesis = f"Market is underpricing YES outcome. Key factors: {', '.join(key_drivers[:5])}." if key_drivers else "Market probability appears lower than fundamental analysis suggests."
+                key_catalysts = key_drivers[:5] if key_drivers else ["Market repricing toward consensus probability"]
+            else:
+                key_drivers = []
+                for signal in no_signals[:3]:
+                    key_drivers.extend(signal.key_drivers[:2])
+                core_thesis = f"Market is overpricing YES outcome. Key factors: {', '.join(key_drivers[:5])}." if key_drivers else "Market probability appears higher than fundamental analysis suggests."
+                key_catalysts = key_drivers[:5] if key_drivers else ["Market repricing toward consensus probability"]
+            
+            # Extract failure scenarios from risk factors
+            failure_scenarios = []
+            for signal in agent_signals[:3]:
+                failure_scenarios.extend(signal.risk_factors[:2])
+            failure_scenarios = failure_scenarios[:5] if failure_scenarios else ["Unexpected market developments", "New information contradicting current analysis"]
+        
+        return TradeExplanation(
+            summary=summary,
+            core_thesis=core_thesis,
+            key_catalysts=key_catalysts,
+            failure_scenarios=failure_scenarios
+        )
 
 
 async def recommendation_generation_node(
@@ -551,7 +646,7 @@ async def recommendation_generation_node(
             mbd.volume_24h
         )
         
-        # Step 9: Generate explanation
+        # Step 9: Generate explanation (with LLM)
         explanation = generate_explanation(
             action,
             edge,
@@ -559,7 +654,8 @@ async def recommendation_generation_node(
             mbd.current_probability,
             consensus.disagreement_index,
             consensus.regime,
-            state
+            state,
+            config  # Pass config for LLM creation
         )
         
         # Step 10: Create metadata
