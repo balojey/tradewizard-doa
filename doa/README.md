@@ -153,6 +153,66 @@ python -m database.migrations.001_initial_schema
 
 Or manually execute the SQL in `database/migrations/001_initial_schema.sql` against your Supabase database.
 
+## Running Locally
+
+### Start the Agent
+
+```bash
+export DIGITALOCEAN_API_TOKEN=your_token
+gradient agent run
+```
+
+The agent will start on `http://localhost:8080` and expose the following endpoints:
+
+- `POST /run` - Analyze a market by condition ID
+- `GET /health` - Health check endpoint
+
+### Interactive Usage
+
+**Analyze a market via API:**
+
+```bash
+curl --location 'http://localhost:8080/run' \
+    --header 'Content-Type: application/json' \
+    --data '{
+        "condition_id": "0x1234567890abcdef"
+    }'
+```
+
+Response:
+```json
+{
+    "status": "success",
+    "condition_id": "0x1234567890abcdef",
+    "market_question": "Will Biden win the 2024 election?",
+    "recommendation": {
+        "action": "LONG_YES",
+        "entry_zone": [0.51, 0.53],
+        "target_zone": [0.56, 0.58],
+        "expected_value": 4.20,
+        "win_probability": 0.62,
+        "liquidity_risk": "low"
+    },
+    "consensus_probability": 0.542,
+    "market_probability": 0.525,
+    "edge": 0.017,
+    "agent_signals": [
+        {
+            "agent_name": "market_microstructure",
+            "direction": "YES",
+            "fair_probability": 0.55,
+            "confidence": 0.82
+        }
+    ],
+    "analysis_metadata": {
+        "duration_ms": 12400,
+        "cost_usd": 0.23,
+        "agents_executed": 13,
+        "llm_calls": 47
+    }
+}
+```
+
 ## Usage
 
 ### CLI Commands
@@ -283,10 +343,90 @@ for signal in result.agent_signals:
     print(f"{signal.agent_name}: {signal.direction} {signal.fair_probability}")
 ```
 
+## Deployment
+
+### 1. Configure Agent Name
+
+Edit `.gradient/agent.yml`:
+
+```yaml
+agent_name: tradewizard-doa-agent
+```
+
+### 2. Deploy to Gradient AI Platform
+
+```bash
+gradient agent deploy
+```
+
+The deployment process will:
+- Package your agent code and dependencies
+- Upload to DigitalOcean's Gradient AI Platform
+- Provision serverless infrastructure
+- Return a deployed agent ID and endpoint URL
+
+### 3. Invoke Deployed Agent
+
+```bash
+# Analyze a market
+curl --location 'https://agents.do-ai.run/<DEPLOYED_AGENT_ID>/main/run' \
+    --header 'Content-Type: application/json' \
+    --header 'Authorization: Bearer <DIGITALOCEAN_API_TOKEN>' \
+    --data '{
+        "condition_id": "0x1234567890abcdef"
+    }'
+```
+
+### 4. Monitor Deployed Agent
+
+View logs and metrics in the Gradient AI dashboard:
+
+```
+https://cloud.digitalocean.com/gen-ai/agents/<DEPLOYED_AGENT_ID>
+```
+
+### Environment Variables for Deployment
+
+Ensure these environment variables are configured in your deployment:
+
+```bash
+# Required for deployment
+DIGITALOCEAN_INFERENCE_KEY=your_inference_key
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+
+# Optional for observability
+OPIK_API_KEY=your_opik_api_key
+OPIK_PROJECT_NAME=doa-market-analysis
+```
+
+### Deployment Best Practices
+
+1. **Use production environment variables**: Copy `.env.production` to `.env` before deploying
+2. **Enable persistence**: Set `ENABLE_PERSISTENCE=true` to store analysis history
+3. **Configure timeouts**: Adjust `AGENT_TIMEOUT_MS` based on expected latency
+4. **Enable Opik tracking**: Set `OPIK_API_KEY` for production observability
+5. **Test locally first**: Always test with `gradient agent run` before deploying
+
+### Scaling Considerations
+
+The deployed agent automatically scales based on:
+- **Request volume**: Handles concurrent market analyses
+- **Agent parallelization**: All 13 agents run in parallel per analysis
+- **Cold start optimization**: First request may take 2-3s longer
+
+For high-volume production use:
+- Consider using MVP agents only (`ENABLE_ADVANCED_AGENTS=false`)
+- Implement request queuing for rate limiting
+- Cache market data to reduce API calls
+- Use smaller LLM models for faster response times
+
 ## Project Structure
 
 ```
 doa/
+├── .gradient/
+│   └── agent.yml          # Deployment configuration
 ├── agents/                 # Intelligence agent implementations
 │   ├── agent_factory.py   # Factory for creating agent nodes
 │   ├── market_microstructure.py
@@ -328,13 +468,164 @@ doa/
 │   ├── llm_factory.py
 │   ├── audit_logger.py
 │   └── result.py
-├── main.py                 # Main workflow and entry point
+├── main.py                 # Main workflow and entry point (LangGraph workflow)
 ├── config.py               # Configuration management
 ├── prompts.py              # All agent prompts
 ├── requirements.txt
 ├── .env.example
 └── README.md
 ```
+
+## Sample Input/Output
+
+### Market Analysis Input
+
+```json
+{
+    "condition_id": "0x1234567890abcdef"
+}
+```
+
+### Analysis Output
+
+```json
+{
+    "status": "success",
+    "condition_id": "0x1234567890abcdef",
+    "market_question": "Will Biden win the 2024 election?",
+    "recommendation": {
+        "action": "LONG_YES",
+        "entry_zone": [0.51, 0.53],
+        "target_zone": [0.56, 0.58],
+        "expected_value": 4.20,
+        "win_probability": 0.62,
+        "liquidity_risk": "low",
+        "explanation": {
+            "summary": "Strong polling fundamentals and positive media sentiment support a YES position. The market is slightly underpricing the consensus probability, creating a favorable entry opportunity.",
+            "core_thesis": "Recent polling shows consistent lead in key swing states, with improving favorability ratings. Media narrative has shifted positively following recent policy announcements.",
+            "key_catalysts": [
+                "Upcoming debate performance",
+                "Q3 economic data release",
+                "Swing state polling updates"
+            ],
+            "failure_scenarios": [
+                "Unexpected scandal or controversy",
+                "Economic downturn",
+                "Third-party candidate surge"
+            ]
+        }
+    },
+    "consensus_probability": 0.542,
+    "market_probability": 0.525,
+    "edge": 0.017,
+    "confidence_band": [0.518, 0.566],
+    "disagreement_index": 0.12,
+    "agent_signals": [
+        {
+            "agent_name": "market_microstructure",
+            "direction": "YES",
+            "fair_probability": 0.55,
+            "confidence": 0.82,
+            "key_drivers": [
+                "Strong bid-side liquidity",
+                "Decreasing spread indicates confidence",
+                "Volume surge on YES side"
+            ],
+            "risk_factors": [
+                "Low overall liquidity could amplify moves",
+                "Recent volatility suggests uncertainty"
+            ]
+        },
+        {
+            "agent_name": "polling_intelligence",
+            "direction": "YES",
+            "fair_probability": 0.58,
+            "confidence": 0.89,
+            "key_drivers": [
+                "Consistent polling lead in swing states",
+                "Improving favorability ratings",
+                "Strong demographic support"
+            ],
+            "risk_factors": [
+                "Polling errors in 2016 and 2020",
+                "Late-deciding voters remain uncertain"
+            ]
+        }
+    ],
+    "thesis_construction": {
+        "bull_thesis": {
+            "probability": 0.56,
+            "edge": 0.035,
+            "supporting_agents": [
+                "polling_intelligence",
+                "media_sentiment",
+                "momentum"
+            ],
+            "key_arguments": [
+                "Polling fundamentals remain strong",
+                "Positive media narrative momentum",
+                "Historical patterns favor incumbent"
+            ]
+        },
+        "bear_thesis": {
+            "probability": 0.48,
+            "edge": 0.045,
+            "supporting_agents": [
+                "tail_risk",
+                "catalyst",
+                "mean_reversion"
+            ],
+            "key_arguments": [
+                "Economic uncertainty could shift sentiment",
+                "Potential for unexpected events",
+                "Market may be overextended"
+            ]
+        }
+    },
+    "cross_examination": {
+        "bull_score": 0.65,
+        "bear_score": 0.45,
+        "bull_survived_tests": 4,
+        "bear_survived_tests": 2,
+        "total_tests": 5
+    },
+    "analysis_metadata": {
+        "duration_ms": 12400,
+        "cost_usd": 0.23,
+        "agents_executed": 13,
+        "llm_calls": 47,
+        "timestamp": "2024-02-20T15:30:00Z"
+    }
+}
+```
+
+## API Reference
+
+### Input Parameters
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `condition_id` | string | Yes | Polymarket condition ID (hex string) |
+
+### Output Fields
+
+| Field | Description |
+|-------|-------------|
+| `status` | Analysis status: `success`, `error`, `no_edge` |
+| `condition_id` | The analyzed market condition ID |
+| `market_question` | Human-readable market question |
+| `recommendation` | Trade recommendation with action, zones, and explanation |
+| `consensus_probability` | Unified probability estimate from all agents |
+| `market_probability` | Current market price/probability |
+| `edge` | Trading edge (consensus - market probability) |
+| `confidence_band` | Lower and upper bounds of consensus estimate |
+| `disagreement_index` | Measure of agent disagreement (0-1) |
+| `agent_signals` | Individual agent analyses and signals |
+| `thesis_construction` | Bull and bear thesis details |
+| `cross_examination` | Adversarial testing results |
+| `analysis_metadata` | Performance metrics (duration, cost, etc.) |
+
+## Project Structure
 
 ## Data Models
 
@@ -442,6 +733,28 @@ MAX_RETRIES = 3  # Retry failed agents up to 3 times
 ```
 
 ## Customization
+
+### Getting API Keys
+
+Before running the agent, you'll need to obtain API keys:
+
+1. **DigitalOcean API Token**:
+   - Go to [API Settings](https://cloud.digitalocean.com/account/api/tokens)
+   - Generate a new token with read/write access
+
+2. **DigitalOcean Inference Key**:
+   - Go to [GenAI Settings](https://cloud.digitalocean.com/gen-ai)
+   - Create or copy your inference key
+
+3. **Supabase Credentials**:
+   - Sign up at [supabase.com](https://supabase.com)
+   - Create a new project
+   - Get your project URL and anon/service key from Settings → API
+
+4. **Opik API Key** (optional):
+   - Sign up at [comet.com/opik](https://www.comet.com/opik)
+   - Navigate to Settings → API Keys
+   - Generate a new API key
 
 ### Adding Custom Agents
 
