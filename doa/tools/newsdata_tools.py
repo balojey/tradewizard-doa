@@ -35,7 +35,7 @@ class FetchLatestNewsInput(BaseModel):
     )
     category: Optional[List[str]] = Field(
         None,
-        description="News categories (e.g., ['politics', 'business', 'technology'])"
+        description="News categories. Valid values: business, entertainment, environment, food, health, politics, science, sports, technology, top, tourism, world. Do NOT use 'finance' - use 'business' instead."
     )
     language: List[str] = Field(
         ["en"],
@@ -84,7 +84,7 @@ class FetchArchiveNewsInput(BaseModel):
     )
     category: Optional[List[str]] = Field(
         None,
-        description="News categories to filter by"
+        description="News categories. Valid values: business, entertainment, environment, food, health, politics, science, sports, technology, top, tourism, world. Do NOT use 'finance' - use 'business' instead."
     )
     language: List[str] = Field(
         ["en"],
@@ -399,13 +399,36 @@ def create_fetch_latest_news_tool(context: ToolContext) -> StructuredTool:
     Returns:
         LangChain StructuredTool instance
     """
-    async def fetch_latest_news(**kwargs) -> str:
+    async def fetch_latest_news(
+        query: Optional[str] = None,
+        qInTitle: Optional[str] = None,
+        timeframe: str = "24h",
+        country: Optional[List[str]] = None,
+        category: Optional[List[str]] = None,
+        language: List[str] = ["en"],
+        sentiment: Optional[str] = None,
+        size: int = 20,
+        removeduplicate: bool = True
+    ) -> str:
         """Fetch latest news from the past 48 hours."""
+        # Build params dict
+        params = {
+            "query": query,
+            "qInTitle": qInTitle,
+            "timeframe": timeframe,
+            "country": country,
+            "category": category,
+            "language": language,
+            "sentiment": sentiment,
+            "size": size,
+            "removeduplicate": removeduplicate
+        }
+        
         # Execute with wrapper
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_latest_news",
             tool_func=context.newsdata_client.fetch_latest_news,
-            params=kwargs,
+            params=params,
             context=context
         )
         
@@ -420,7 +443,7 @@ def create_fetch_latest_news_tool(context: ToolContext) -> StructuredTool:
     
     return StructuredTool(
         name="fetch_latest_news",
-        description="Fetch latest news from the past 48 hours with filtering options",
+        description="Fetch latest news from the past 48 hours with filtering options. Valid categories: business, entertainment, environment, food, health, politics, science, sports, technology, top, tourism, world",
         args_schema=FetchLatestNewsInput,
         func=fetch_latest_news,
         coroutine=fetch_latest_news
@@ -442,13 +465,36 @@ def create_fetch_archive_news_tool(context: ToolContext) -> StructuredTool:
     Returns:
         LangChain StructuredTool instance
     """
-    async def fetch_archive_news(**kwargs) -> str:
+    async def fetch_archive_news(
+        from_date: str,
+        to_date: str,
+        query: Optional[str] = None,
+        qInTitle: Optional[str] = None,
+        country: Optional[List[str]] = None,
+        category: Optional[List[str]] = None,
+        language: List[str] = ["en"],
+        size: int = 20,
+        removeduplicate: bool = True
+    ) -> str:
         """Fetch historical news with date range filtering."""
+        # Build params dict
+        params = {
+            "from_date": from_date,
+            "to_date": to_date,
+            "query": query,
+            "qInTitle": qInTitle,
+            "country": country,
+            "category": category,
+            "language": language,
+            "size": size,
+            "removeduplicate": removeduplicate
+        }
+        
         # Execute with wrapper
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_archive_news",
             tool_func=context.newsdata_client.fetch_archive_news,
-            params=kwargs,
+            params=params,
             context=context
         )
         
@@ -463,7 +509,7 @@ def create_fetch_archive_news_tool(context: ToolContext) -> StructuredTool:
     
     return StructuredTool(
         name="fetch_archive_news",
-        description="Fetch historical news with date range filtering",
+        description="Fetch historical news with date range filtering. Valid categories: business, entertainment, environment, food, health, politics, science, sports, technology, top, tourism, world",
         args_schema=FetchArchiveNewsInput,
         func=fetch_archive_news,
         coroutine=fetch_archive_news
@@ -485,13 +531,38 @@ def create_fetch_crypto_news_tool(context: ToolContext) -> StructuredTool:
     Returns:
         LangChain StructuredTool instance
     """
-    async def fetch_crypto_news(**kwargs) -> str:
+    async def fetch_crypto_news(
+        coin: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        qInTitle: Optional[str] = None,
+        timeframe: Optional[str] = None,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        sentiment: Optional[str] = None,
+        language: List[str] = ["en"],
+        size: int = 20,
+        removeduplicate: bool = True
+    ) -> str:
         """Fetch cryptocurrency-related news."""
+        # Build params dict
+        params = {
+            "coin": coin,
+            "query": query,
+            "qInTitle": qInTitle,
+            "timeframe": timeframe,
+            "from_date": from_date,
+            "to_date": to_date,
+            "sentiment": sentiment,
+            "language": language,
+            "size": size,
+            "removeduplicate": removeduplicate
+        }
+        
         # Execute with wrapper
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_crypto_news",
             tool_func=context.newsdata_client.fetch_crypto_news,
-            params=kwargs,
+            params=params,
             context=context
         )
         
@@ -528,13 +599,42 @@ def create_fetch_market_news_tool(context: ToolContext) -> StructuredTool:
     Returns:
         LangChain StructuredTool instance
     """
-    async def fetch_market_news(**kwargs) -> str:
+    async def fetch_market_news(
+        symbol: Optional[List[str]] = None,
+        organization: Optional[List[str]] = None,
+        query: Optional[str] = None,
+        qInTitle: Optional[str] = None,
+        timeframe: Optional[str] = None,
+        from_date: Optional[str] = None,
+        to_date: Optional[str] = None,
+        sentiment: Optional[str] = None,
+        country: Optional[List[str]] = None,
+        language: List[str] = ["en"],
+        size: int = 20,
+        removeduplicate: bool = True
+    ) -> str:
         """Fetch financial market and company news."""
+        # Build params dict
+        params = {
+            "symbol": symbol,
+            "organization": organization,
+            "query": query,
+            "qInTitle": qInTitle,
+            "timeframe": timeframe,
+            "from_date": from_date,
+            "to_date": to_date,
+            "sentiment": sentiment,
+            "country": country,
+            "language": language,
+            "size": size,
+            "removeduplicate": removeduplicate
+        }
+        
         # Execute with wrapper
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_market_news",
             tool_func=context.newsdata_client.fetch_market_news,
-            params=kwargs,
+            params=params,
             context=context
         )
         

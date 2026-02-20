@@ -330,6 +330,8 @@ class NewsDataClient:
             httpx.HTTPError: If API request fails after retries
             ValueError: If response parsing fails
         """
+        last_exception = None
+        
         for attempt in range(self.max_retries):
             try:
                 async with httpx.AsyncClient(timeout=self.timeout) as client:
@@ -354,18 +356,25 @@ class NewsDataClient:
                         data = response.json()
                         return data
                     except Exception as e:
+                        # Don't retry JSON parsing errors - raise immediately
                         raise ValueError(
                             f"Failed to parse NewsData API response: {str(e)}"
                         ) from e
                     
-            except httpx.TimeoutException:
+            except ValueError:
+                # Re-raise ValueError immediately without retry
+                raise
+                
+            except httpx.TimeoutException as e:
+                last_exception = e
                 if attempt == self.max_retries - 1:
                     raise httpx.TimeoutException(
                         f"NewsData API request timeout after {self.max_retries} attempts"
-                    )
+                    ) from e
                 await asyncio.sleep(self.base_backoff * (2 ** attempt))
                 
             except httpx.HTTPStatusError as e:
+                last_exception = e
                 # Don't retry on client errors (4xx except 429)
                 if 400 <= e.response.status_code < 500 and e.response.status_code != 429:
                     raise
@@ -376,10 +385,25 @@ class NewsDataClient:
                 await asyncio.sleep(self.base_backoff * (2 ** attempt))
                 
             except httpx.RequestError as e:
+                last_exception = e
                 # Network errors - retry with backoff
                 if attempt == self.max_retries - 1:
                     raise
                 await asyncio.sleep(self.base_backoff * (2 ** attempt))
+            
+            except Exception as e:
+                # Catch any other unexpected errors
+                last_exception = e
+                if attempt == self.max_retries - 1:
+                    raise RuntimeError(
+                        f"Unexpected error in _make_request: {str(e)}"
+                    ) from e
+                await asyncio.sleep(self.base_backoff * (2 ** attempt))
         
-        # Should never reach here, but just in case
-        raise RuntimeError("Unexpected error in _make_request")
+        # If we exhausted retries without returning or raising, raise the last exception
+        if last_exception:
+            raise RuntimeError(
+                f"Request failed after {self.max_retries} attempts"
+            ) from last_exception
+        else:
+            raise RuntimeError("Unexpected error: no response after retries")
