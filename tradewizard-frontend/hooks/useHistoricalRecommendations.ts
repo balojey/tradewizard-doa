@@ -266,8 +266,8 @@ function transformHistoricalRecommendation(
   rec: any,
   market: MarketRow
 ): HistoricalRecommendation {
-  const catalysts = (rec.catalysts as string[]) || [];
-  const risks = (rec.risks as string[]) || [];
+  const catalysts = rec.catalysts as string[] || [];
+  const risks = rec.risks as string[] || [];
   const action = rec.direction as 'LONG_YES' | 'LONG_NO' | 'NO_TRADE';
   const agentSignals = Array.isArray(rec.agent_signals) ? rec.agent_signals : [];
 

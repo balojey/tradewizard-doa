@@ -440,16 +440,12 @@ function TimelineView({
             Key Catalysts
           </div>
           <div className="space-y-2">
-            {Array.isArray(recommendation.explanation.keyCatalysts) && recommendation.explanation.keyCatalysts.length > 0 ? (
-              recommendation.explanation.keyCatalysts.map((catalyst, index) => (
-                <div key={index} className="text-xs sm:text-sm text-gray-300 flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-2 flex-shrink-0" />
-                  <span className="break-words">{catalyst}</span>
-                </div>
-              ))
-            ) : (
-              <div className="text-xs sm:text-sm text-gray-400 italic">No catalysts identified</div>
-            )}
+            {recommendation.explanation.keyCatalysts.map((catalyst, index) => (
+              <div key={index} className="text-xs sm:text-sm text-gray-300 flex items-start gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-400 mt-2 flex-shrink-0" />
+                <span className="break-words">{catalyst}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -459,16 +455,12 @@ function TimelineView({
             Failure Scenarios
           </div>
           <div className="space-y-2">
-            {Array.isArray(recommendation.explanation.failureScenarios) && recommendation.explanation.failureScenarios.length > 0 ? (
-              recommendation.explanation.failureScenarios.map((risk, index) => (
-                <div key={index} className="text-xs sm:text-sm text-gray-300 flex items-start gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 flex-shrink-0" />
-                  <span className="break-words">{risk}</span>
-                </div>
-              ))
-            ) : (
-              <div className="text-xs sm:text-sm text-gray-400 italic">No failure scenarios identified</div>
-            )}
+            {recommendation.explanation.failureScenarios.map((risk, index) => (
+              <div key={index} className="text-xs sm:text-sm text-gray-300 flex items-start gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-red-400 mt-2 flex-shrink-0" />
+                <span className="break-words">{risk}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
