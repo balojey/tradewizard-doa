@@ -199,7 +199,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Verify PEP 8 compliance
   - Ask the user if questions arise
 
-- [ ] 9. Node.js: Implement configuration parsing and key state initialization
+- [x] 9. Node.js: Implement configuration parsing and key state initialization
   - Modify `NewsDataClient` constructor to parse comma-separated API keys
   - Implement whitespace trimming and validation
   - Create `KeyState` interface with all required fields
@@ -224,7 +224,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test keys with special characters
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 10.1, 10.7_
 
-- [ ] 10. Node.js: Implement rate limit detection logic
+- [x] 10. Node.js: Implement rate limit detection logic
   - Create `isRateLimitError` private method to check HTTP 429 responses
   - Parse response body to distinguish rate limit from quota exceeded
   - Create `extractRetryAfter` private method to parse Retry-After header
@@ -248,7 +248,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test non-429 errors do not trigger rotation
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 10.2_
 
-- [ ] 11. Node.js: Implement key rotation engine
+- [x] 11. Node.js: Implement key rotation engine
   - Create `rotateApiKey` private method with retryAfterSeconds parameter
   - Mark current key as rate-limited with expiry timestamp
   - Create `getAvailableKeys` private method with auto-expiry logic
@@ -278,7 +278,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test LRU selection with various usage patterns
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.3, 4.4, 10.3_
 
-- [ ] 12. Node.js: Implement key state management
+- [x] 12. Node.js: Implement key state management
   - Update `getAvailableKeys` to check expiry timestamps
   - Auto-expire rate-limited keys when expiry time passed
   - Update `totalRequests` counter on each request
@@ -304,7 +304,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test state completeness (all required fields)
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 10.4_
 
-- [ ] 13. Node.js: Integrate rotation into request handler
+- [x] 13. Node.js: Integrate rotation into request handler
   - Modify `makeDirectRequest` method to use current API key
   - Create `updateUrlApiKey` helper to inject key into URL
   - Update key usage statistics before each request
@@ -332,7 +332,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Verify existing error handling preserved
   - _Requirements: 3.6, 5.1, 8.2, 8.5, 10.6_
 
-- [ ] 14. Node.js: Implement graceful degradation
+- [x] 14. Node.js: Implement graceful degradation
   - Return empty result set when `rotateApiKey` returns null
   - Calculate earliest expiry time across all keys
   - Log error message with earliest expiry time
@@ -356,7 +356,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test earliest expiry time calculated correctly
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 10.5_
 
-- [ ] 15. Node.js: Implement logging and observability
+- [x] 15. Node.js: Implement logging and observability
   - Log warning when rate limit detected (include key ID and timestamp)
   - Log info when key rotation occurs (include old/new key IDs)
   - Log error when all keys exhausted (include earliest expiry)
@@ -386,7 +386,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test no rotation logs with single key
   - _Requirements: 2.4, 3.7, 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 16. Checkpoint - Node.js implementation complete
+- [x] 16. Checkpoint - Node.js implementation complete
   - Ensure all Node.js tests pass
   - Verify backward compatibility with single key
   - Verify TypeScript types on all new methods
@@ -410,7 +410,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Verify all return types unchanged
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 7.5, 8.5, 10.7_
 
-- [ ] 19. Documentation updates
+- [x] 19. Documentation updates
   - Update Python README with multi-key configuration instructions
   - Update Node.js README with multi-key configuration instructions
   - Add environment variable examples to .env.example files
@@ -418,7 +418,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Add troubleshooting section for rate limit issues
   - _Requirements: 1.1, 5.1, 9.1, 9.2, 9.3_
 
-- [ ] 20. Final checkpoint - Feature complete
+- [x] 20. Final checkpoint - Feature complete
   - Ensure all tests pass in both implementations
   - Verify observability integration working
   - Verify backward compatibility maintained

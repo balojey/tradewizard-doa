@@ -242,10 +242,16 @@ describe('NewsDataClient', () => {
         ok: false,
         status: 429,
         statusText: 'Too Many Requests',
+        headers: new Headers({ 'Retry-After': '900' }),
         text: async () => JSON.stringify({ message: 'Rate limit exceeded' }),
+        json: async () => ({ status: 'error', code: 'RATE_LIMIT_EXCEEDED', message: 'Rate limit exceeded' }),
       });
 
-      await expect(client.fetchLatestNews()).rejects.toThrow('Rate limit exceeded');
+      // With single key, should return empty result set (graceful degradation)
+      const result = await client.fetchLatestNews();
+      expect(result.status).toBe('success');
+      expect(result.totalResults).toBe(0);
+      expect(result.results).toEqual([]);
     });
 
     it('should handle 500 Server Error', async () => {
