@@ -286,3 +286,159 @@ async def test_size_parameter_capped_at_50():
         params = call_args[0][1]
         
         assert params["size"] == 50
+
+
+# ============================================================================
+# Multi-Key Rotation Tests (Task 1-7)
+# ============================================================================
+
+class TestConfigurationParsing:
+    """Test configuration parsing and key state initialization."""
+    
+    def test_single_key_configuration(self):
+        """Single key configuration should work (backward compatibility)."""
+        client = NewsDataClient(api_key="test_key_12345678")
+        
+        assert len(client.api_keys) == 1
+        assert client.api_keys[0] == "test_key_12345678"
+        assert len(client.key_states) == 1
+        assert client.current_key_index == 0
+        # Backward compatibility check
+        assert client.api_key == "test_key_12345678"
+    
+    def test_multiple_keys_configuration(self):
+        """Multiple keys should be parsed correctly."""
+        client = NewsDataClient(api_key="key1_12345678,key2_87654321,key3_abcdefgh")
+        
+        assert len(client.api_keys) == 3
+        assert client.api_keys[0] == "key1_12345678"
+        assert client.api_keys[1] == "key2_87654321"
+        assert client.api_keys[2] == "key3_abcdefgh"
+        assert len(client.key_states) == 3
+        assert client.current_key_index == 0
+    
+    def test_whitespace_trimming(self):
+        """Whitespace should be trimmed from keys."""
+        client = NewsDataClient(api_key="  key1_123  ,  key2_456  ,key3_789")
+        
+        assert len(client.api_keys) == 3
+        assert client.api_keys[0] == "key1_123"
+        assert client.api_keys[1] == "key2_456"
+        assert client.api_keys[2] == "key3_789"
+    
+    def test_empty_keys_filtered(self):
+        """Empty keys should be filtered out."""
+        client = NewsDataClient(api_key="key1_123,,key2_456,  ,key3_789")
+        
+        assert len(client.api_keys) == 3
+        assert client.api_keys[0] == "key1_123"
+        assert client.api_keys[1] == "key2_456"
+        assert client.api_keys[2] == "key3_789"
+    
+    def test_empty_string_raises_error(self):
+        """Empty string should raise ValueError."""
+        with pytest.raises(ValueError, match="At least one API key must be provided"):
+            NewsDataClient(api_key="")
+    
+    def test_all_whitespace_raises_error(self):
+        """All whitespace should raise ValueError."""
+        with pytest.raises(ValueError, match="At least one API key must be provided"):
+            NewsDataClient(api_key="   ,  ,  ")
+    
+    def test_only_commas_raises_error(self):
+        """Only commas should raise ValueError."""
+        with pytest.raises(ValueError, match="At least one API key must be provided"):
+            NewsDataClient(api_key=",,,")
+
+
+class TestKeyStateInitialization:
+    """Test key state initialization."""
+    
+    def test_key_state_created_for_each_key(self):
+        """Key state should be created for each configured key."""
+        client = NewsDataClient(api_key="key1_12345678,key2_87654321")
+        
+        assert len(client.key_states) == 2
+        assert "key1_123" in client.key_states
+        assert "key2_876" in client.key_states
+    
+    def test_key_state_initial_values(self):
+        """Key state should have correct initial values."""
+        client = NewsDataClient(api_key="test_key_12345678")
+        
+        key_id = "test_key"
+        state = client.key_states[key_id]
+        
+        assert state.key == "test_key_12345678"
+        assert state.key_id == "test_key"
+        assert state.is_rate_limited is False
+        assert state.rate_limit_expiry is None
+        assert state.total_requests == 0
+        assert state.last_used is None
+    
+    def test_key_id_truncation(self):
+        """Key ID should be first 8 characters."""
+        client = NewsDataClient(api_key="verylongapikey123456789")
+        
+        key_id = client._get_key_id("verylongapikey123456789")
+        assert key_id == "verylong"
+        assert len(key_id) == 8
+    
+    def test_key_id_short_key(self):
+        """Key ID should be full key if less than 8 characters."""
+        client = NewsDataClient(api_key="short")
+        
+        key_id = client._get_key_id("short")
+        assert key_id == "short"
+        assert len(key_id) == 5
+    
+    def test_current_key_index_initialized(self):
+        """Current key index should be initialized to 0."""
+        client = NewsDataClient(api_key="key1,key2,key3")
+        
+        assert client.current_key_index == 0
+
+
+class TestKeyStateDataclass:
+    """Test KeyState dataclass."""
+    
+    def test_key_state_creation(self):
+        """KeyState should be created with all required fields."""
+        from tools.newsdata_client import KeyState
+        from datetime import datetime
+        
+        state = KeyState(
+            key="test_key_12345678",
+            key_id="test_key",
+            is_rate_limited=False,
+            rate_limit_expiry=None,
+            total_requests=0,
+            last_used=None
+        )
+        
+        assert state.key == "test_key_12345678"
+        assert state.key_id == "test_key"
+        assert state.is_rate_limited is False
+        assert state.rate_limit_expiry is None
+        assert state.total_requests == 0
+        assert state.last_used is None
+    
+    def test_key_state_with_values(self):
+        """KeyState should support all field types."""
+        from tools.newsdata_client import KeyState
+        from datetime import datetime
+        
+        now = datetime.now()
+        state = KeyState(
+            key="test_key",
+            key_id="test_key",
+            is_rate_limited=True,
+            rate_limit_expiry=now,
+            total_requests=42,
+            last_used=now
+        )
+        
+        assert state.is_rate_limited is True
+        assert state.rate_limit_expiry == now
+        assert state.total_requests == 42
+        assert state.last_used == now

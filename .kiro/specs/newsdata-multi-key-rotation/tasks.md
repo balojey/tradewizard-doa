@@ -6,7 +6,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
 
 ## Tasks
 
-- [ ] 1. Python: Implement configuration parsing and key state initialization
+- [x] 1. Python: Implement configuration parsing and key state initialization
   - Modify `NewsDataClient.__init__` to parse comma-separated API keys
   - Implement whitespace trimming and validation
   - Create `KeyState` dataclass with all required fields
@@ -31,7 +31,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test keys with special characters
   - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 10.1, 10.7_
 
-- [ ] 2. Python: Implement rate limit detection logic
+- [x] 2. Python: Implement rate limit detection logic
   - Create `_is_rate_limit_error` method to check HTTP 429 responses
   - Parse response body to distinguish rate limit from quota exceeded
   - Create `_extract_retry_after` method to parse Retry-After header
@@ -55,7 +55,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test non-429 errors do not trigger rotation
   - _Requirements: 2.1, 2.2, 2.3, 2.5, 10.2_
 
-- [ ] 3. Python: Implement key rotation engine
+- [x] 3. Python: Implement key rotation engine
   - Create `_rotate_api_key` method with retry_after_seconds parameter
   - Mark current key as rate-limited with expiry timestamp
   - Create `_get_available_keys` method with auto-expiry logic
@@ -85,7 +85,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test LRU selection with various usage patterns
   - _Requirements: 3.1, 3.2, 3.3, 3.4, 4.3, 4.4, 10.3_
 
-- [ ] 4. Python: Implement key state management
+- [x] 4. Python: Implement key state management
   - Update `_get_available_keys` to check expiry timestamps
   - Auto-expire rate-limited keys when expiry time passed
   - Update `total_requests` counter on each request
@@ -111,7 +111,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test state completeness (all required fields)
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5, 10.4_
 
-- [ ] 5. Python: Integrate rotation into request handler
+- [x] 5. Python: Integrate rotation into request handler
   - Modify `_make_request` method to use current API key
   - Update key usage statistics before each request
   - Detect rate limit responses using `_is_rate_limit_error`
@@ -138,7 +138,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Verify existing error handling preserved
   - _Requirements: 3.6, 5.1, 7.2, 7.5, 10.6_
 
-- [ ] 6. Python: Implement graceful degradation
+- [x] 6. Python: Implement graceful degradation
   - Return empty result set when `_rotate_api_key` returns None
   - Calculate earliest expiry time across all keys
   - Log ERROR level message with earliest expiry time
@@ -162,7 +162,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test earliest expiry time calculated correctly
   - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5, 10.5_
 
-- [ ] 7. Python: Implement logging and observability
+- [x] 7. Python: Implement logging and observability
   - Log WARNING when rate limit detected (include key ID and timestamp)
   - Log INFO when key rotation occurs (include old/new key IDs)
   - Log ERROR when all keys exhausted (include earliest expiry)
@@ -192,7 +192,7 @@ This implementation adds intelligent API key rotation to both Python (doa) and N
   - Test no rotation logs with single key
   - _Requirements: 2.4, 3.7, 9.1, 9.2, 9.3, 9.4, 9.5_
 
-- [ ] 8. Checkpoint - Python implementation complete
+- [x] 8. Checkpoint - Python implementation complete
   - Ensure all Python tests pass
   - Verify backward compatibility with single key
   - Verify type hints on all new methods
