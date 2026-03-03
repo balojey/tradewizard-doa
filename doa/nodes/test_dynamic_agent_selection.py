@@ -41,6 +41,50 @@ class TestSelectAgentsByMarketType:
         assert 'breaking_news' in agents
         assert 'event_impact' in agents
     
+    def test_policy_market_includes_polling_agent(self):
+        """
+        Bug Condition Exploration Test - Property 1: Fault Condition
+        
+        **Validates: Requirements 2.3**
+        
+        IMPORTANT: This test encodes the EXPECTED behavior (polling agent should be included).
+        On UNFIXED code, this test will FAIL because polling_intelligence is excluded.
+        After the fix is implemented, this test will PASS.
+        
+        Test that policy markets include polling_intelligence agent.
+        Polling data provides valuable insights for policy markets (public opinion, approval ratings).
+        """
+        agents = select_agents_by_market_type('policy')
+        
+        # EXPECTED: polling_intelligence should be included for policy markets
+        # ACTUAL (unfixed): polling_intelligence is NOT in the agent list
+        assert 'polling_intelligence' in agents, (
+            f"Bug confirmed: polling_intelligence not in policy market agents. "
+            f"Agents returned: {agents}"
+        )
+    
+    def test_geopolitical_market_includes_polling_agent(self):
+        """
+        Bug Condition Exploration Test - Property 1: Fault Condition
+        
+        **Validates: Requirements 2.3**
+        
+        IMPORTANT: This test encodes the EXPECTED behavior (polling agent should be included).
+        On UNFIXED code, this test will FAIL because polling_intelligence is excluded.
+        After the fix is implemented, this test will PASS.
+        
+        Test that geopolitical markets include polling_intelligence agent.
+        Polling data provides valuable insights for geopolitical markets (public sentiment, international opinion).
+        """
+        agents = select_agents_by_market_type('geopolitical')
+        
+        # EXPECTED: polling_intelligence should be included for geopolitical markets
+        # ACTUAL (unfixed): polling_intelligence is NOT in the agent list
+        assert 'polling_intelligence' in agents, (
+            f"Bug confirmed: polling_intelligence not in geopolitical market agents. "
+            f"Agents returned: {agents}"
+        )
+    
     def test_court_market_type(self):
         """Court markets should get event intelligence and historical pattern agents."""
         agents = select_agents_by_market_type('court')

@@ -48,11 +48,14 @@ def select_agents_by_market_type(event_type: str) -> List[str]:
     
     Different market types benefit from different agent specializations:
     - Election: Polling, sentiment, narrative agents
-    - Court: Event intelligence, historical pattern agents
-    - Policy: Event intelligence, sentiment, catalyst agents
-    - Economic: Event intelligence, historical pattern agents
-    - Geopolitical: Event intelligence, sentiment, catalyst agents
+    - Court: Event intelligence, polling, historical pattern agents
+    - Policy: Event intelligence, polling, sentiment, catalyst agents
+    - Economic: Event intelligence, polling, historical pattern agents
+    - Geopolitical: Event intelligence, polling, sentiment, catalyst agents
     - Other: All available agents
+    
+    Note: Polling intelligence is valuable for all market types as it provides
+    insights into public opinion, approval ratings, and statistical patterns.
     
     Args:
         event_type: Market event type (election, court, policy, etc.)
@@ -74,8 +77,9 @@ def select_agents_by_market_type(event_type: str) -> List[str]:
         agents.extend(POLLING_STATISTICAL_AGENTS)
     
     elif event_type == 'policy':
-        # Policy markets benefit from event intelligence, sentiment, and catalysts
+        # Policy markets benefit from event intelligence, polling, sentiment, and catalysts
         agents.extend(EVENT_INTELLIGENCE_AGENTS)
+        agents.extend(POLLING_STATISTICAL_AGENTS)
         agents.extend(SENTIMENT_NARRATIVE_AGENTS)
         agents.extend(EVENT_SCENARIO_AGENTS)
     
@@ -85,8 +89,9 @@ def select_agents_by_market_type(event_type: str) -> List[str]:
         agents.extend(POLLING_STATISTICAL_AGENTS)
     
     elif event_type == 'geopolitical':
-        # Geopolitical markets benefit from event intelligence, sentiment, and catalysts
+        # Geopolitical markets benefit from event intelligence, polling, sentiment, and catalysts
         agents.extend(EVENT_INTELLIGENCE_AGENTS)
+        agents.extend(POLLING_STATISTICAL_AGENTS)
         agents.extend(SENTIMENT_NARRATIVE_AGENTS)
         agents.extend(EVENT_SCENARIO_AGENTS)
     
