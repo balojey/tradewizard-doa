@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from langchain_openai import ChatOpenAI
+from langchain_core.runnables import RunnableSerializable
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -320,12 +321,13 @@ class LLMRotationManager:
 # LLM With Rotation Wrapper
 # ============================================================================
 
-class LLMWithRotation:
+class LLMWithRotation(RunnableSerializable[Any, Any]):
     """
     Wrapper that adds automatic model rotation to LLM on rate limit errors.
     
     Follows the same pattern as StructuredOutputLLM wrapper in llm_factory.py.
     Automatically handles rate limit errors by rotating to the next available model.
+    Inherits from RunnableSerializable to be compatible with LangChain's piping operations.
     
     Example:
         >>> from config import LLMConfig
@@ -335,7 +337,11 @@ class LLMWithRotation:
         >>> response = await llm.ainvoke(messages)
     """
     
-    def __init__(self, rotation_manager: LLMRotationManager, config: Any):
+    rotation_manager: Any
+    config: Any
+    current_llm: Any
+    
+    def __init__(self, rotation_manager: LLMRotationManager, config: Any, **kwargs):
         """
         Initialize LLM with rotation capability.
         
@@ -343,12 +349,38 @@ class LLMWithRotation:
             rotation_manager: LLMRotationManager instance for handling model rotation
             config: LLMConfig object with api_key, temperature, max_tokens, timeout_ms
         """
-        self.rotation_manager = rotation_manager
-        self.config = config
-        self.current_llm = self._create_llm(rotation_manager.get_current_model())
+        current_llm = self._create_llm_static(rotation_manager, config)
+        super().__init__(
+            rotation_manager=rotation_manager,
+            config=config,
+            current_llm=current_llm,
+            **kwargs
+        )
         
         logger.info(
             f"Initialized LLMWithRotation with {len(rotation_manager.model_names)} model(s)"
+        )
+    
+    @staticmethod
+    def _create_llm_static(rotation_manager: LLMRotationManager, config: Any) -> ChatOpenAI:
+        """
+        Static method to create ChatOpenAI instance for specific model.
+        
+        Args:
+            rotation_manager: LLMRotationManager instance
+            config: LLMConfig object
+            
+        Returns:
+            Configured ChatOpenAI instance
+        """
+        model_name = rotation_manager.get_current_model()
+        return ChatOpenAI(
+            base_url="https://inference.do-ai.run/v1/",
+            api_key=config.api_key,
+            model=model_name,
+            temperature=config.temperature,
+            max_tokens=config.max_tokens,
+            timeout=config.timeout_ms / 1000  # Convert ms to seconds
         )
     
     def _create_llm(self, model_name: str) -> ChatOpenAI:
@@ -370,7 +402,7 @@ class LLMWithRotation:
             timeout=self.config.timeout_ms / 1000  # Convert ms to seconds
         )
     
-    async def ainvoke(self, messages, **kwargs):
+    async def ainvoke(self, input, config=None, **kwargs):
         """
         Async invoke with automatic model rotation on rate limit.
         
@@ -379,7 +411,8 @@ class LLMWithRotation:
         Continues until successful or all models are exhausted.
         
         Args:
-            messages: Messages to send to the LLM
+            input: Input to send to the LLM (messages or other input format)
+            config: Optional configuration dict
             **kwargs: Additional arguments to pass to LLM invocation
             
         Returns:
@@ -405,8 +438,8 @@ class LLMWithRotation:
                         f"(attempt {attempt + 1}/{max_retries})"
                     )
                 
-                # Invoke LLM
-                response = await self.current_llm.ainvoke(messages, **kwargs)
+                # Invoke LLM with proper signature
+                response = await self.current_llm.ainvoke(input, config=config, **kwargs)
                 return response
                 
             except Exception as e:
@@ -438,6 +471,21 @@ class LLMWithRotation:
         
         # Exhausted all retries (should not reach here due to RuntimeError above)
         raise RuntimeError("All LLM models rate limited")
+    def invoke(self, input, config=None, **kwargs):
+        """
+        Synchronous invoke method required by RunnableSerializable.
+
+        Args:
+            input: Input to send to the LLM
+            config: Optional configuration
+            **kwargs: Additional arguments
+
+        Returns:
+            LLM response
+        """
+        # Delegate to underlying LLM's invoke method
+        return self.current_llm.invoke(input, config=config, **kwargs)
+
     
     def bind(self, **kwargs):
         """
@@ -453,3 +501,19 @@ class LLMWithRotation:
         """
         self.current_llm = self.current_llm.bind(**kwargs)
         return self
+    def bind_tools(self, tools, **kwargs):
+        """
+        Bind tools to the underlying LLM for tool-calling agents.
+
+        This is required by LangChain's create_react_agent function.
+
+        Args:
+            tools: List of tools to bind to the LLM
+            **kwargs: Additional arguments to pass to bind_tools
+
+        Returns:
+            Self for method chaining
+        """
+        self.current_llm = self.current_llm.bind_tools(tools, **kwargs)
+        return self
+
