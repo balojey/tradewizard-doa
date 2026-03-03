@@ -36,6 +36,7 @@ export interface NewsDataConfig {
   timeout?: number;
   retryAttempts?: number;
   retryDelay?: number;
+  isFreeTier?: boolean; // Whether using free tier plan (excludes size/timeframe params)
   
   // Rate limiting configuration
   rateLimiting: {
@@ -384,10 +385,16 @@ export class NewsDataClient {
     console.log('[NewsDataClient] Initialized with configuration:', {
       baseUrl: this.config.baseUrl,
       apiKeyCount: this.apiKeys.length,
+      isFreeTier: this.config.isFreeTier || false,
       rateLimiting: this.config.rateLimiting,
       cache: this.config.cache,
       circuitBreaker: this.config.circuitBreaker,
     });
+    
+    // Log free tier detection
+    if (this.config.isFreeTier) {
+      console.log('[NewsDataClient] Free tier detected, excluding size and timeframe parameters');
+    }
   }
   
   /**
@@ -469,9 +476,14 @@ export class NewsDataClient {
     // Add API key
     url.searchParams.set('apikey', this.config.apiKey);
     
-    // Add other parameters
+    // Add other parameters, excluding size and timeframe for free tier
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined && value !== null) {
+        // Skip size and timeframe parameters for free tier
+        if (this.config.isFreeTier && (key === 'size' || key === 'timeframe')) {
+          return;
+        }
+        
         if (Array.isArray(value)) {
           url.searchParams.set(key, value.join(','));
         } else {
@@ -1143,23 +1155,6 @@ export class NewsDataClient {
         reason: 'rate_limit',
         ...contextInfo,
       });
-      
-      // Integrate with audit logger for metrics
-      if (this.observabilityLogger) {
-        this.observabilityLogger.logEvent({
-          timestamp: Date.now(),
-          eventType: 'api_key_rotation',
-          source: 'newsdata',
-          metadata: {
-            oldKeyId: currentKeyId,
-            newKeyId: nextKeyId,
-            reason: 'rate_limit',
-            availableKeys: availableKeys.length,
-            totalKeys: this.apiKeys.length,
-            ...contextInfo,
-          },
-        });
-      }
     }
     
     return nextKey;

@@ -44,6 +44,7 @@ class NewsDataConfig:
     api_key: str
     base_url: str = "https://newsdata.io/api/1"
     timeout: int = 30
+    is_free_tier: bool = False
     
     def validate(self) -> List[str]:
         """Validate NewsData configuration."""
@@ -361,6 +362,7 @@ class EngineConfig:
                 "api_key_configured": bool(self.newsdata.api_key),
                 "base_url": self.newsdata.base_url,
                 "timeout": self.newsdata.timeout,
+                "is_free_tier": self.newsdata.is_free_tier,
             },
             "autonomous_agents": {
                 "max_tool_calls": self.autonomous_agents.max_tool_calls,
@@ -497,7 +499,8 @@ def load_config() -> EngineConfig:
     newsdata = NewsDataConfig(
         api_key=os.getenv("NEWSDATA_API_KEY", ""),
         base_url=os.getenv("NEWSDATA_BASE_URL", "https://newsdata.io/api/1"),
-        timeout=int(os.getenv("NEWSDATA_TIMEOUT", "30"))
+        timeout=int(os.getenv("NEWSDATA_TIMEOUT", "30")),
+        is_free_tier=os.getenv("NEWSDATA_FREE_TIER", "false").lower() == "true"
     )
     
     # Autonomous agent configuration

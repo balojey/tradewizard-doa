@@ -159,7 +159,8 @@ relevant breaking news data before making your assessment.
         newsdata_client = NewsDataClient(
             api_key=newsdata_api_key,
             base_url=os.getenv("NEWSDATA_BASE_URL", "https://newsdata.io/api/1"),
-            timeout=int(os.getenv("NEWSDATA_TIMEOUT", "30"))
+            timeout=int(os.getenv("NEWSDATA_TIMEOUT", "30")),
+            is_free_tier=os.getenv("NEWSDATA_FREE_TIER", "false").lower() == "true"
         )
         
         # Initialize tool cache (Requirement 6.3)

@@ -67,7 +67,8 @@ class NewsDataClient:
         self,
         api_key: str,
         base_url: str = "https://newsdata.io/api/1",
-        timeout: int = 30
+        timeout: int = 30,
+        is_free_tier: bool = False
     ):
         """
         Initialize NewsData client with API key and configuration.
@@ -76,6 +77,7 @@ class NewsDataClient:
             api_key: NewsData.io API key (or comma-separated list of keys)
             base_url: Base URL for NewsData API (default: https://newsdata.io/api/1)
             timeout: Request timeout in seconds (default: 30)
+            is_free_tier: Whether using free tier plan (excludes size/timeframe params)
             
         Raises:
             ValueError: If no valid API keys are provided
@@ -111,6 +113,11 @@ class NewsDataClient:
         self.timeout = timeout
         self.max_retries = 3
         self.base_backoff = 1.0  # seconds
+        self.is_free_tier = is_free_tier
+        
+        # Log free tier detection
+        if self.is_free_tier:
+            logger.info("NewsData free tier detected, excluding size and timeframe parameters")
     
     def _get_key_id(self, key: str) -> str:
         """Get key identifier (first 8 characters) for logging."""
@@ -372,10 +379,13 @@ class NewsDataClient:
         # Build query parameters
         params = {
             "language": ",".join(language),
-            "size": min(size, 50),  # API max is 50
-            "removeduplicate": 1 if removeduplicate else 0,
-            "timeframe": timeframe
+            "removeduplicate": 1 if removeduplicate else 0
         }
+        
+        # Only include size and timeframe for paid tier
+        if not self.is_free_tier:
+            params["size"] = min(size, 50)  # API max is 50
+            params["timeframe"] = timeframe
         
         if query:
             params["q"] = query
@@ -430,9 +440,12 @@ class NewsDataClient:
             "from_date": from_date,
             "to_date": to_date,
             "language": ",".join(language),
-            "size": min(size, 50),
             "removeduplicate": 1 if removeduplicate else 0
         }
+        
+        # Only include size for paid tier
+        if not self.is_free_tier:
+            params["size"] = min(size, 50)
         
         if query:
             params["q"] = query
@@ -485,9 +498,14 @@ class NewsDataClient:
         # Build query parameters
         params = {
             "language": ",".join(language),
-            "size": min(size, 50),
             "removeduplicate": 1 if removeduplicate else 0
         }
+        
+        # Only include size and timeframe for paid tier
+        if not self.is_free_tier:
+            params["size"] = min(size, 50)
+            if timeframe:
+                params["timeframe"] = timeframe
         
         if coin:
             params["coin"] = ",".join(coin)
@@ -495,8 +513,6 @@ class NewsDataClient:
             params["q"] = query
         if qInTitle:
             params["qInTitle"] = qInTitle
-        if timeframe:
-            params["timeframe"] = timeframe
         if from_date:
             params["from_date"] = from_date
         if to_date:
@@ -550,9 +566,14 @@ class NewsDataClient:
         # Build query parameters
         params = {
             "language": ",".join(language),
-            "size": min(size, 50),
             "removeduplicate": 1 if removeduplicate else 0
         }
+        
+        # Only include size and timeframe for paid tier
+        if not self.is_free_tier:
+            params["size"] = min(size, 50)
+            if timeframe:
+                params["timeframe"] = timeframe
         
         if symbol:
             params["symbol"] = ",".join(symbol)
@@ -562,8 +583,6 @@ class NewsDataClient:
             params["q"] = query
         if qInTitle:
             params["qInTitle"] = qInTitle
-        if timeframe:
-            params["timeframe"] = timeframe
         if from_date:
             params["from_date"] = from_date
         if to_date:

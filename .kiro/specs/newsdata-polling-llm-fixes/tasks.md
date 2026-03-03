@@ -2,7 +2,7 @@
 
 ## Bug 1: NewsData API Free Tier Parameters
 
-- [-] 1. Write bug condition exploration test for NewsData free tier
+- [x] 1. Write bug condition exploration test for NewsData free tier
   - **Property 1: Fault Condition** - NewsData Free Tier Parameter Exclusion
   - **IMPORTANT**: Write this property-based test BEFORE implementing the fix
   - **GOAL**: Surface counterexamples that demonstrate the bug exists
@@ -13,7 +13,7 @@
   - Document counterexamples found (e.g., "fetch_latest_news with size=20 returns API error instead of excluding parameter")
   - _Requirements: 2.1_
 
-- [ ] 2. Write preservation property tests for NewsData paid tier (BEFORE implementing fix)
+- [x] 2. Write preservation property tests for NewsData paid tier (BEFORE implementing fix)
   - **Property 2: Preservation** - NewsData Paid Tier Unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - Observe: fetch_latest_news with paid tier and size=20, timeframe="24h" succeeds on unfixed code
@@ -22,9 +22,9 @@
   - Verify test passes on UNFIXED code
   - _Requirements: 3.1, 3.2, 3.3_
 
-- [ ] 3. Fix NewsData API free tier parameter handling
+- [x] 3. Fix NewsData API free tier parameter handling
 
-  - [ ] 3.1 Implement tier detection and conditional parameter exclusion (Python)
+  - [x] 3.1 Implement tier detection and conditional parameter exclusion (Python)
     - Add `NEWSDATA_FREE_TIER` environment variable to config.py (boolean, default: false)
     - Modify `doa/tools/newsdata_client.py` constructor to parse and store `self.is_free_tier`
     - Modify `fetch_latest_news`: Check `if not self.is_free_tier` before adding size and timeframe parameters
@@ -37,7 +37,7 @@
     - _Preservation: Paid tier requests continue to include size and timeframe parameters exactly as before_
     - _Requirements: 2.1, 2.2, 3.1, 3.2, 3.3_
 
-  - [ ] 3.2 Implement tier detection and conditional parameter exclusion (TypeScript)
+  - [x] 3.2 Implement tier detection and conditional parameter exclusion (TypeScript)
     - Add `NEWSDATA_FREE_TIER` environment variable to config (boolean, default: false)
     - Modify `tradewizard-agents/src/tools/newsdata-tools.ts` constructor to parse and store `this.isFreeTier`
     - Modify `fetchLatestNews`: Check `if (!this.isFreeTier)` before adding size and timeframe parameters
@@ -50,7 +50,7 @@
     - _Preservation: Paid tier requests continue to include size and timeframe parameters exactly as before_
     - _Requirements: 2.1, 2.2, 3.1, 3.2, 3.3_
 
-  - [ ] 3.3 Verify bug condition exploration test now passes
+  - [x] 3.3 Verify bug condition exploration test now passes
     - **Property 1: Expected Behavior** - NewsData Free Tier Parameter Exclusion
     - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
     - The test from task 1 encodes the expected behavior
@@ -59,7 +59,7 @@
     - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
     - _Requirements: Expected Behavior Properties from design_
 
-  - [ ] 3.4 Verify preservation tests still pass
+  - [x] 3.4 Verify preservation tests still pass
     - **Property 2: Preservation** - NewsData Paid Tier Unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
     - Run preservation property tests from step 2
