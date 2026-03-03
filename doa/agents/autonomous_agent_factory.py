@@ -134,9 +134,17 @@ def create_autonomous_agent_node(
         >>> state_update = await node(state)
     """
     from utils.llm_factory import create_llm_instance
+    from utils.llm_rotation_manager import LLMRotationManager
     
-    # Create LLM instance from config
-    llm = create_llm_instance(config.llm)
+    # Create rotation manager if multiple models configured
+    rotation_manager = None
+    if len(config.llm.model_names) > 1:
+        # Multiple models configured - create rotation manager
+        model_names_str = ",".join(config.llm.model_names)
+        rotation_manager = LLMRotationManager(model_names_str)
+    
+    # Create LLM instance from config with optional rotation manager
+    llm = create_llm_instance(config.llm, rotation_manager=rotation_manager)
     
     # Get timeout from config (default to 45 seconds)
     timeout_seconds = config.agents.timeout_ms / 1000.0

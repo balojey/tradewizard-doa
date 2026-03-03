@@ -85,11 +85,16 @@ class AutonomousAgentConfig:
 @dataclass
 class LLMConfig:
     """Gradient AI LLM configuration."""
-    model_name: str
+    model_names: List[str]  # List of model names for rotation support
     temperature: float
     max_tokens: int
     timeout_ms: int
     api_key: str
+    
+    @property
+    def model_name(self) -> str:
+        """Get primary model name for backward compatibility."""
+        return self.model_names[0] if self.model_names else ""
     
     def validate(self) -> List[str]:
         """Validate LLM configuration."""
@@ -98,8 +103,13 @@ class LLMConfig:
         if not self.api_key:
             errors.append("DIGITALOCEAN_INFERENCE_KEY is required for Gradient AI LLM access")
             
-        if not self.model_name:
+        if not self.model_names or len(self.model_names) == 0:
             errors.append("LLM_MODEL_NAME is required")
+        
+        # Validate each model name is non-empty
+        for i, model in enumerate(self.model_names):
+            if not model or not model.strip():
+                errors.append(f"LLM_MODEL_NAME entry {i+1} is empty")
             
         if not 0.0 <= self.temperature <= 2.0:
             errors.append("LLM_TEMPERATURE must be between 0.0 and 2.0")
@@ -324,7 +334,8 @@ class EngineConfig:
                 "sqlite_path": self.langgraph.sqlite_path,
             },
             "llm": {
-                "model_name": self.llm.model_name,
+                "model_names": self.llm.model_names,
+                "primary_model": self.llm.model_name,  # For backward compatibility
                 "temperature": self.llm.temperature,
                 "max_tokens": self.llm.max_tokens,
                 "timeout_ms": self.llm.timeout_ms,
@@ -423,8 +434,12 @@ def load_config() -> EngineConfig:
             "  Please check LLM_TEMPERATURE, LLM_MAX_TOKENS, and LLM_TIMEOUT_MS"
         )
     
+    # Parse model names - support comma-separated list for rotation
+    model_name_str = os.getenv("LLM_MODEL_NAME", "llama-3.3-70b-instruct")
+    model_names = [name.strip() for name in model_name_str.split(",") if name.strip()]
+    
     llm = LLMConfig(
-        model_name=os.getenv("LLM_MODEL_NAME", "llama-3.3-70b-instruct"),
+        model_names=model_names,
         temperature=temperature,
         max_tokens=max_tokens,
         timeout_ms=timeout_ms,

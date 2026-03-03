@@ -40,9 +40,9 @@ def test_polymarket_config_validation():
 
 def test_llm_config_validation():
     """Test LLM configuration validation."""
-    # Valid configuration
+    # Valid configuration with single model
     config = LLMConfig(
-        model_name="llama-3.3-70b-instruct",
+        model_names=["llama-3.3-70b-instruct"],
         temperature=0.7,
         max_tokens=2000,
         timeout_ms=30000,
@@ -50,9 +50,22 @@ def test_llm_config_validation():
     )
     assert config.validate() == []
     
+    # Valid configuration with multiple models
+    config = LLMConfig(
+        model_names=["llama-3.3-70b-instruct", "llama3-8b-instruct"],
+        temperature=0.7,
+        max_tokens=2000,
+        timeout_ms=30000,
+        api_key="test-key",
+    )
+    assert config.validate() == []
+    
+    # Test backward compatibility property
+    assert config.model_name == "llama-3.3-70b-instruct"
+    
     # Missing API key
     config = LLMConfig(
-        model_name="llama-3.3-70b-instruct",
+        model_names=["llama-3.3-70b-instruct"],
         temperature=0.7,
         max_tokens=2000,
         timeout_ms=30000,
@@ -62,9 +75,33 @@ def test_llm_config_validation():
     assert len(errors) > 0
     assert any("DIGITALOCEAN_INFERENCE_KEY" in error for error in errors)
     
+    # Empty model names list
+    config = LLMConfig(
+        model_names=[],
+        temperature=0.7,
+        max_tokens=2000,
+        timeout_ms=30000,
+        api_key="test-key",
+    )
+    errors = config.validate()
+    assert len(errors) > 0
+    assert any("LLM_MODEL_NAME is required" in error for error in errors)
+    
+    # Empty string in model names
+    config = LLMConfig(
+        model_names=["llama-3.3-70b-instruct", ""],
+        temperature=0.7,
+        max_tokens=2000,
+        timeout_ms=30000,
+        api_key="test-key",
+    )
+    errors = config.validate()
+    assert len(errors) > 0
+    assert any("entry" in error and "empty" in error for error in errors)
+    
     # Invalid temperature
     config = LLMConfig(
-        model_name="llama-3.3-70b-instruct",
+        model_names=["llama-3.3-70b-instruct"],
         temperature=3.0,
         max_tokens=2000,
         timeout_ms=30000,
@@ -218,7 +255,7 @@ def test_engine_config_validation():
             sqlite_path=None,
         ),
         llm=LLMConfig(
-            model_name="llama-3.3-70b-instruct",
+            model_names=["llama-3.3-70b-instruct"],
             temperature=0.7,
             max_tokens=2000,
             timeout_ms=30000,
@@ -287,7 +324,7 @@ def test_engine_config_validation_with_errors():
             sqlite_path=None,
         ),
         llm=LLMConfig(
-            model_name="llama-3.3-70b-instruct",
+            model_names=["llama-3.3-70b-instruct"],
             temperature=3.0,  # Invalid
             max_tokens=2000,
             timeout_ms=30000,
@@ -364,7 +401,7 @@ def test_engine_config_to_dict():
             sqlite_path=None,
         ),
         llm=LLMConfig(
-            model_name="llama-3.3-70b-instruct",
+            model_names=["llama-3.3-70b-instruct", "llama3-8b-instruct"],
             temperature=0.7,
             max_tokens=2000,
             timeout_ms=30000,
@@ -429,7 +466,8 @@ def test_engine_config_to_dict():
     assert "secret-key" not in str(config_dict)
     
     # Check values are present
-    assert config_dict["llm"]["model_name"] == "llama-3.3-70b-instruct"
+    assert config_dict["llm"]["model_names"] == ["llama-3.3-70b-instruct", "llama3-8b-instruct"]
+    assert config_dict["llm"]["primary_model"] == "llama-3.3-70b-instruct"
     assert config_dict["agents"]["timeout_ms"] == 45000
     assert config_dict["database"]["enable_persistence"] is True
 
@@ -473,3 +511,74 @@ def test_load_config_with_valid_env():
     finally:
         # Clean up
         pass
+
+
+def test_load_config_with_multiple_models():
+    """Test that load_config parses comma-separated model names."""
+    # Set required environment variables
+    os.environ["DIGITALOCEAN_INFERENCE_KEY"] = "test-key"
+    os.environ["LLM_MODEL_NAME"] = "llama-3.3-70b-instruct,llama3-8b-instruct,llama-3.1-8b-instruct"
+    os.environ["POLYMARKET_GAMMA_API_URL"] = "https://gamma-api.polymarket.com"
+    os.environ["POLYMARKET_CLOB_API_URL"] = "https://clob.polymarket.com"
+    os.environ["ENABLE_PERSISTENCE"] = "false"
+    
+    try:
+        config = load_config()
+        
+        # Verify multiple models parsed correctly
+        assert len(config.llm.model_names) == 3
+        assert config.llm.model_names[0] == "llama-3.3-70b-instruct"
+        assert config.llm.model_names[1] == "llama3-8b-instruct"
+        assert config.llm.model_names[2] == "llama-3.1-8b-instruct"
+        
+        # Verify backward compatibility property
+        assert config.llm.model_name == "llama-3.3-70b-instruct"
+    finally:
+        # Clean up
+        if "LLM_MODEL_NAME" in os.environ:
+            del os.environ["LLM_MODEL_NAME"]
+
+
+def test_load_config_with_single_model():
+    """Test that load_config works with single model (backward compatibility)."""
+    # Set required environment variables
+    os.environ["DIGITALOCEAN_INFERENCE_KEY"] = "test-key"
+    os.environ["LLM_MODEL_NAME"] = "llama-3.3-70b-instruct"
+    os.environ["POLYMARKET_GAMMA_API_URL"] = "https://gamma-api.polymarket.com"
+    os.environ["POLYMARKET_CLOB_API_URL"] = "https://clob.polymarket.com"
+    os.environ["ENABLE_PERSISTENCE"] = "false"
+    
+    try:
+        config = load_config()
+        
+        # Verify single model parsed correctly
+        assert len(config.llm.model_names) == 1
+        assert config.llm.model_names[0] == "llama-3.3-70b-instruct"
+        assert config.llm.model_name == "llama-3.3-70b-instruct"
+    finally:
+        # Clean up
+        if "LLM_MODEL_NAME" in os.environ:
+            del os.environ["LLM_MODEL_NAME"]
+
+
+def test_load_config_with_whitespace_in_models():
+    """Test that load_config handles whitespace in comma-separated models."""
+    # Set required environment variables
+    os.environ["DIGITALOCEAN_INFERENCE_KEY"] = "test-key"
+    os.environ["LLM_MODEL_NAME"] = " llama-3.3-70b-instruct , llama3-8b-instruct , llama-3.1-8b-instruct "
+    os.environ["POLYMARKET_GAMMA_API_URL"] = "https://gamma-api.polymarket.com"
+    os.environ["POLYMARKET_CLOB_API_URL"] = "https://clob.polymarket.com"
+    os.environ["ENABLE_PERSISTENCE"] = "false"
+    
+    try:
+        config = load_config()
+        
+        # Verify whitespace is stripped
+        assert len(config.llm.model_names) == 3
+        assert config.llm.model_names[0] == "llama-3.3-70b-instruct"
+        assert config.llm.model_names[1] == "llama3-8b-instruct"
+        assert config.llm.model_names[2] == "llama-3.1-8b-instruct"
+    finally:
+        # Clean up
+        if "LLM_MODEL_NAME" in os.environ:
+            del os.environ["LLM_MODEL_NAME"]

@@ -137,7 +137,7 @@
 
 ## Bug 3: LLM Rate Limit Handling
 
-- [-] 7. Write bug condition exploration test for LLM rate limit rotation
+- [x] 7. Write bug condition exploration test for LLM rate limit rotation
   - **Property 1: Fault Condition** - LLM Model Rotation on Rate Limit
   - **IMPORTANT**: Write this property-based test BEFORE implementing the fix
   - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
@@ -153,7 +153,7 @@
   - Mark task complete when test is written, run, and failure is documented
   - _Requirements: 2.5_
 
-- [~] 8. Write preservation property tests for LLM success path (BEFORE implementing fix)
+- [x] 8. Write preservation property tests for LLM success path (BEFORE implementing fix)
   - **Property 2: Preservation** - LLM Success Path Unchanged
   - **IMPORTANT**: Follow observation-first methodology
   - Observe behavior on UNFIXED code for successful LLM invocations
@@ -168,7 +168,7 @@
 
 - [ ] 9. Fix LLM rate limit handling with model rotation
 
-  - [~] 9.1 Implement ModelState and LLMRotationManager classes
+  - [x] 9.1 Implement ModelState and LLMRotationManager classes
     - Create `doa/utils/llm_rotation_manager.py` following NewsData key rotation pattern
     - Define ModelState dataclass with model_name, model_id, is_rate_limited, rate_limit_expiry, total_requests, last_used
     - Implement LLMRotationManager class with model state tracking
@@ -184,7 +184,7 @@
     - _Preservation: Successful invocations continue to use primary model_
     - _Requirements: 2.5, 2.6, 3.7, 3.8, 3.9_
 
-  - [~] 9.2 Implement LLMWithRotation wrapper class
+  - [x] 9.2 Implement LLMWithRotation wrapper class
     - Create wrapper class in `doa/utils/llm_rotation_manager.py`
     - Implement `__init__` to accept rotation_manager and config
     - Implement `_create_llm(model_name)` to create ChatOpenAI instance for specific model
@@ -199,27 +199,27 @@
     - _Preservation: Successful invocations continue to use primary model_
     - _Requirements: 2.5, 2.6, 3.7, 3.8, 3.9_
 
-  - [~] 9.3 Update config.py to parse multiple model names
+  - [x] 9.3 Update config.py to parse multiple model names
     - Modify `doa/config.py` to parse `LLM_MODEL_NAME` as comma-separated list
     - Store as `List[str]` in LLMConfig
     - Maintain backward compatibility for single model configuration
     - _Requirements: 2.5, 2.6_
 
-  - [~] 9.4 Update llm_factory.py to use rotation manager
+  - [x] 9.4 Update llm_factory.py to use rotation manager
     - Modify `doa/utils/llm_factory.py` function `create_llm_instance`
     - Accept optional `rotation_manager: LLMRotationManager` parameter
     - If rotation_manager provided and multiple models configured, return LLMWithRotation wrapper
     - If single model or no rotation_manager, return standard ChatOpenAI instance (backward compatibility)
     - _Requirements: 2.5, 2.6, 3.7, 3.8, 3.9_
 
-  - [~] 9.5 Update agent creation to use rotation manager
+  - [x] 9.5 Update agent creation to use rotation manager
     - Modify agent factory functions to create LLMRotationManager when multiple models configured
     - Pass rotation_manager to create_llm_instance
     - Update `doa/agents/autonomous_agent_factory.py` function `create_autonomous_agent_node`
     - Update `doa/agents/agent_factory.py` for non-autonomous agents if applicable
     - _Requirements: 2.5, 2.6_
 
-  - [~] 9.6 Verify bug condition exploration test now passes
+  - [x] 9.6 Verify bug condition exploration test now passes
     - **Property 1: Expected Behavior** - LLM Model Rotation on Rate Limit
     - **IMPORTANT**: Re-run the SAME test from task 7 - do NOT write a new test
     - The test from task 7 encodes the expected behavior
@@ -228,14 +228,14 @@
     - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
     - _Requirements: Expected Behavior Properties from design_
 
-  - [~] 9.7 Verify preservation tests still pass
+  - [x] 9.7 Verify preservation tests still pass
     - **Property 2: Preservation** - LLM Success Path Unchanged
     - **IMPORTANT**: Re-run the SAME tests from task 8 - do NOT write new tests
     - Run preservation property tests from step 8
     - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
     - Confirm all tests still pass after fix (no regressions)
 
-- [~] 10. Checkpoint - Ensure all tests pass
+- [ ] 10. Checkpoint - Ensure all tests pass
   - Run all exploration tests (tasks 1, 4, 7) - should now PASS
   - Run all preservation tests (tasks 2, 5, 8) - should still PASS
   - Run full integration test with all three fixes applied

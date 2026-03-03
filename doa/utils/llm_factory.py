@@ -14,6 +14,14 @@ from langchain_core.prompts import ChatPromptTemplate
 
 from config import EngineConfig, LLMConfig
 
+# Import rotation manager for LLM model rotation support
+try:
+    from utils.llm_rotation_manager import LLMRotationManager, LLMWithRotation
+except ImportError:
+    # Fallback if rotation manager not available
+    LLMRotationManager = None
+    LLMWithRotation = None
+
 logger = logging.getLogger(__name__)
 
 T = TypeVar('T', bound=BaseModel)
@@ -77,7 +85,8 @@ IMPORTANT: Your response must be valid JSON that can be parsed. Do not include a
 def create_llm_instance(
     config: LLMConfig,
     opik_config: Optional[dict] = None,
-    structured_output_model: Optional[Type[T]] = None
+    structured_output_model: Optional[Type[T]] = None,
+    rotation_manager: Optional['LLMRotationManager'] = None
 ) -> BaseChatModel:
     """
     Create a Digital Ocean AI LLM instance via OpenAI-compatible API.
@@ -86,32 +95,62 @@ def create_llm_instance(
         config: LLM configuration with model name, temperature, etc.
         opik_config: Optional Opik callback configuration for tracing (unused, for compatibility)
         structured_output_model: Optional Pydantic model for structured output
+        rotation_manager: Optional LLMRotationManager for automatic model rotation on rate limits
         
     Returns:
-        Configured ChatOpenAI instance with custom structured output parsing
+        Configured ChatOpenAI instance with optional rotation and structured output parsing
         
     Example:
         >>> from models.types import AgentSignal
+        >>> from utils.llm_rotation_manager import LLMRotationManager
+        >>> 
+        >>> # Without rotation (single model or backward compatibility)
         >>> llm = create_llm_instance(
         ...     config=engine_config.llm,
         ...     structured_output_model=AgentSignal
         ... )
+        >>> 
+        >>> # With rotation (multiple models configured)
+        >>> rotation_manager = LLMRotationManager("model1,model2")
+        >>> llm = create_llm_instance(
+        ...     config=engine_config.llm,
+        ...     structured_output_model=AgentSignal,
+        ...     rotation_manager=rotation_manager
+        ... )
     """
     try:
-        # Create ChatOpenAI instance with Digital Ocean base URL
-        base_llm = ChatOpenAI(
-            base_url="https://inference.do-ai.run/v1/",
-            api_key=config.api_key,
-            model=config.model_name,
-            temperature=config.temperature,
-            max_tokens=config.max_tokens,
-            timeout=config.timeout_ms / 1000,  # Convert ms to seconds
+        # Determine if we should use rotation wrapper
+        use_rotation = (
+            rotation_manager is not None 
+            and LLMWithRotation is not None
+            and len(config.model_names) > 1
         )
         
-        logger.info(
-            f"Created Digital Ocean AI client: model={config.model_name}, "
-            f"temperature={config.temperature}, max_tokens={config.max_tokens}"
-        )
+        # Create base LLM instance (with or without rotation)
+        if use_rotation:
+            # Use LLMWithRotation wrapper for automatic model rotation
+            base_llm = LLMWithRotation(rotation_manager, config)
+            logger.info(
+                f"Created Digital Ocean AI client with rotation: "
+                f"{len(config.model_names)} models configured, "
+                f"primary={config.model_name}, temperature={config.temperature}, "
+                f"max_tokens={config.max_tokens}"
+            )
+        else:
+            # Standard ChatOpenAI instance (backward compatibility)
+            base_llm = ChatOpenAI(
+                base_url="https://inference.do-ai.run/v1/",
+                api_key=config.api_key,
+                model=config.model_name,  # Use primary model
+                temperature=config.temperature,
+                max_tokens=config.max_tokens,
+                timeout=config.timeout_ms / 1000,  # Convert ms to seconds
+            )
+            
+            logger.info(
+                f"Created Digital Ocean AI client: model={config.model_name}, "
+                f"temperature={config.temperature}, max_tokens={config.max_tokens}"
+            )
         
         # Add custom structured output parser for Digital Ocean API
         if structured_output_model:
@@ -216,6 +255,7 @@ def create_agent_llm(
     This is a convenience wrapper around create_llm_instance that:
     - Uses the engine's LLM configuration
     - Configures structured output for the agent's signal type
+    - Creates rotation manager if multiple models configured
     - Digital Ocean provides automatic observability
     
     Args:
@@ -234,12 +274,21 @@ def create_agent_llm(
         ...     output_model=AgentSignal
         ... )
     """
+    # Create rotation manager if multiple models configured
+    rotation_manager = None
+    if len(config.llm.model_names) > 1 and LLMRotationManager is not None:
+        # Multiple models configured - create rotation manager
+        model_names_str = ",".join(config.llm.model_names)
+        rotation_manager = LLMRotationManager(model_names_str)
+    
     # Digital Ocean Gradient provides automatic observability
     # No need for Opik integration
     return create_llm_instance(
         config=config.llm,
         opik_config=None,
-        structured_output_model=output_model
+        structured_output_model=output_model,
+        rotation_manager=rotation_manager
     )
+
 
 
