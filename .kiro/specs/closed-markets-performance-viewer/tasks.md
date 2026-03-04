@@ -65,7 +65,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Generate cumulative P/L time series
     - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.7_
 
-  - [ ]* 3.2 Write property test for investment simulation
+  - [x]* 3.2 Write property test for investment simulation
     - **Property 8: Investment simulation calculation correctness**
     - **Validates: Requirements 4.2, 4.3, 4.4, 4.5, 4.7**
     - Generate random recommendations and investment amounts
@@ -81,7 +81,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Calculate average confidence and confidence-accuracy correlation
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ]* 3.4 Write property test for accuracy calculation
+  - [x]* 3.4 Write property test for accuracy calculation
     - **Property 10: Accuracy calculation correctness**
     - **Validates: Requirements 5.1, 5.2, 5.3**
     - Generate random recommendations with wasCorrect boolean
@@ -97,7 +97,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Handle edge cases (zero volatility, insufficient data)
     - _Requirements: 9.1, 9.2, 9.3_
 
-  - [ ]* 3.6 Write property test for risk metrics
+  - [x]* 3.6 Write property test for risk metrics
     - **Property 18: Risk metrics calculation correctness**
     - **Validates: Requirements 9.1, 9.2, 9.3**
     - Generate random return series
@@ -121,7 +121,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Compare AI performance to baselines
     - _Requirements: 12.1, 12.2, 12.5_
 
-  - [ ]* 3.9 Write property test for baseline comparison
+  - [x]* 3.9 Write property test for baseline comparison
     - **Property 25: Baseline strategy calculation correctness**
     - **Validates: Requirements 12.1, 12.2**
     - Generate random price series and recommendation timing
@@ -132,8 +132,8 @@ The implementation follows a phased approach: database and API setup, core compo
 - [x] 4. Checkpoint - Ensure calculation utilities are tested
   - Ensure all tests pass, ask the user if questions arise.
 
-- [-] 5. Core UI Components - Closed Markets Grid
-  - [~] 5.1 Create ClosedMarketsGrid component
+- [x] 5. Core UI Components - Closed Markets Grid
+  - [x] 5.1 Create ClosedMarketsGrid component
     - Create component at `components/Performance/ClosedMarketsGrid.tsx`
     - Render market cards in responsive grid layout (1 col mobile, 2 col tablet, 3 col desktop)
     - Display market title, resolution outcome, and "no recommendations" indicator
@@ -141,14 +141,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Show loading skeleton during data fetch
     - _Requirements: 1.2, 1.4, 1.5, 2.1_
 
-  - [~] 5.2 Implement pagination controls
+  - [x] 5.2 Implement pagination controls
     - Add "Load More" button or infinite scroll
     - Display current page and total count
     - Prefetch next page on scroll proximity
     - Handle loading state during pagination
     - _Requirements: 1.6_
 
-  - [ ]* 5.3 Write property test for pagination activation
+  - [x]* 5.3 Write property test for pagination activation
     - **Property 3: Pagination activation for >20 markets**
     - **Validates: Requirements 1.6**
     - Generate random market counts (0-100)
@@ -156,14 +156,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify pagination controls hidden when count <= 20
     - Run 100 iterations minimum
 
-  - [ ]* 5.4 Write unit tests for ClosedMarketsGrid
+  - [x]* 5.4 Write unit tests for ClosedMarketsGrid
     - Test rendering with empty markets array
     - Test rendering with markets containing no recommendations
     - Test click navigation to market detail
     - Test loading state display
 
-- [~] 6. Core UI Components - Performance Tab Container
-  - [~] 6.1 Create PerformanceTab component
+- [x] 6. Core UI Components - Performance Tab Container
+  - [x] 6.1 Create PerformanceTab component
     - Create component at `components/Trading/Markets/PerformanceTab.tsx`
     - Fetch market performance data using useMarketPerformance hook
     - Coordinate child components (simulator, charts, metrics)
@@ -171,14 +171,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Display empty state if no recommendations
     - _Requirements: 3.1, 3.2, 15.4_
 
-  - [~] 6.2 Create TabNavigation component
+  - [x] 6.2 Create TabNavigation component
     - Create reusable tab navigation component
     - Support Overview and Performance tabs
     - Handle active tab state
     - Apply consistent styling with existing UI patterns
     - _Requirements: 3.3_
 
-  - [ ]* 6.3 Write property test for tab visibility
+  - [x]* 6.3 Write property test for tab visibility
     - **Property 6: Performance tab conditional rendering**
     - **Validates: Requirements 3.1, 3.2**
     - Generate markets with varying recommendation counts (0-10)
@@ -186,14 +186,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify Performance tab hidden when recommendations = 0
     - Run 100 iterations minimum
 
-  - [ ]* 6.4 Write unit tests for PerformanceTab
+  - [x]* 6.4 Write unit tests for PerformanceTab
     - Test loading state display
     - Test error state with retry button
     - Test empty state when no recommendations
     - Test successful data rendering
 
-- [~] 7. Investment Simulator Component
-  - [~] 7.1 Create InvestmentSimulator component
+- [x] 7. Investment Simulator Component
+  - [x] 7.1 Create InvestmentSimulator component
     - Create component at `components/Performance/InvestmentSimulator.tsx`
     - Add investment amount input with default $100
     - Use useSimulatedPortfolio hook for calculations
@@ -202,13 +202,13 @@ The implementation follows a phased approach: database and API setup, core compo
     - Show per-recommendation results in expandable list
     - _Requirements: 4.1, 4.2, 4.6, 4.8_
 
-  - [~] 7.2 Create useSimulatedPortfolio hook
+  - [x] 7.2 Create useSimulatedPortfolio hook
     - Implement useMemo hook wrapping calculateSimulatedPortfolio
     - Recalculate only when recommendations or investment amount changes
     - Return trades, cumulative series, and summary metrics
     - _Requirements: 4.2, 11.4_
 
-  - [ ]* 7.3 Write property test for cumulative P/L chart
+  - [x]* 7.3 Write property test for cumulative P/L chart
     - **Property 9: Cumulative P/L chart rendering correctness**
     - **Validates: Requirements 4.6**
     - Generate random simulated trades with timestamps
@@ -216,14 +216,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify cumulative values increase/decrease correctly
     - Run 100 iterations minimum
 
-  - [ ]* 7.4 Write unit tests for InvestmentSimulator
+  - [x]* 7.4 Write unit tests for InvestmentSimulator
     - Test default investment amount of $100
     - Test investment amount change updates calculations
     - Test handling of zero recommendations
     - Test cumulative chart rendering
 
-- [~] 8. Accuracy and ROI Metrics Components
-  - [~] 8.1 Create AccuracyMetrics component
+- [x] 8. Accuracy and ROI Metrics Components
+  - [x] 8.1 Create AccuracyMetrics component
     - Create component at `components/Performance/AccuracyMetrics.tsx`
     - Display total recommendations, correct count, accuracy percentage
     - Display accuracy breakdown by confidence level
@@ -231,20 +231,20 @@ The implementation follows a phased approach: database and API setup, core compo
     - Use card layout with icons and color coding
     - _Requirements: 5.1, 5.2, 5.3, 5.4, 5.5_
 
-  - [ ]* 8.2 Write unit tests for AccuracyMetrics
+  - [x]* 8.2 Write unit tests for AccuracyMetrics
     - Test accuracy calculation display
     - Test confidence level breakdown
     - Test handling of zero recommendations
     - Test correlation display
 
-  - [~] 8.3 Create ROI metrics display section
+  - [x] 8.3 Create ROI metrics display section
     - Add ROI metrics to PerformanceTab or AccuracyMetrics
     - Display total ROI, average ROI, best ROI, worst ROI
     - Use color coding (green for positive, red for negative)
     - Add tooltips for metric explanations
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5_
 
-  - [ ]* 8.4 Write property test for ROI metrics
+  - [x]* 8.4 Write property test for ROI metrics
     - **Property 15: ROI metrics calculation correctness**
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5**
     - Generate random recommendations with ROI values
@@ -254,8 +254,8 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify worst ROI is minimum value
     - Run 100 iterations minimum
 
-- [~] 9. Price Chart with Markers Component
-  - [~] 9.1 Create PriceChartWithMarkers component
+- [x] 9. Price Chart with Markers Component
+  - [x] 9.1 Create PriceChartWithMarkers component
     - Create component at `components/Performance/PriceChartWithMarkers.tsx`
     - Render price line chart using Recharts LineChart
     - Overlay entry markers at recommendation timestamps
@@ -265,13 +265,13 @@ The implementation follows a phased approach: database and API setup, core compo
     - Support highlighted period from timeline clicks
     - _Requirements: 6.2, 6.3, 6.4, 6.5_
 
-  - [~] 9.2 Implement chart data downsampling
+  - [x] 9.2 Implement chart data downsampling
     - Create downsamplePriceData utility function
     - Limit chart to 200 data points for performance
     - Use memoization to avoid recalculation
     - _Requirements: 11.4_
 
-  - [ ]* 9.3 Write property test for marker placement
+  - [x]* 9.3 Write property test for marker placement
     - **Property 12: Price chart marker placement correctness**
     - **Validates: Requirements 6.2, 6.3**
     - Generate random recommendations with timestamps
@@ -279,15 +279,15 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify exit markers appear at exit signal times when available
     - Run 100 iterations minimum
 
-  - [ ]* 9.4 Write unit tests for PriceChartWithMarkers
+  - [x]* 9.4 Write unit tests for PriceChartWithMarkers
     - Test chart rendering with price data
     - Test marker rendering for recommendations
     - Test tooltip display on marker hover
     - Test profitability color coding
     - Test handling of incomplete price data
 
-- [~] 10. Recommendation Timeline Component
-  - [~] 10.1 Create RecommendationTimeline component
+- [x] 10. Recommendation Timeline Component
+  - [x] 10.1 Create RecommendationTimeline component
     - Create component at `components/Performance/RecommendationTimeline.tsx`
     - Display recommendations in chronological order
     - Show timestamp, type (LONG_YES/LONG_NO), confidence
@@ -297,13 +297,13 @@ The implementation follows a phased approach: database and API setup, core compo
     - Trigger chart highlighting on click
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6_
 
-  - [~] 10.2 Implement virtual scrolling for long lists
+  - [x] 10.2 Implement virtual scrolling for long lists
     - Use @tanstack/react-virtual for performance
     - Set estimated row height and overscan
     - Handle dynamic list updates
     - _Requirements: 11.4_
 
-  - [ ]* 10.3 Write property test for timeline ordering
+  - [x]* 10.3 Write property test for timeline ordering
     - **Property 16: Recommendation timeline chronological ordering**
     - **Validates: Requirements 8.1, 8.2, 8.3, 8.4, 8.5**
     - Generate random recommendations with timestamps
@@ -312,7 +312,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify all required fields visible (timestamp, type, confidence, price, ROI)
     - Run 100 iterations minimum
 
-  - [ ]* 10.4 Write unit tests for RecommendationTimeline
+  - [x]* 10.4 Write unit tests for RecommendationTimeline
     - Test rendering with multiple recommendations
     - Test chronological ordering
     - Test click highlighting interaction
@@ -321,8 +321,8 @@ The implementation follows a phased approach: database and API setup, core compo
 - [x] 11. Checkpoint - Ensure core components are functional
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 12. Risk Metrics Component
-  - [~] 12.1 Create RiskMetrics component
+- [x] 12. Risk Metrics Component
+  - [x] 12.1 Create RiskMetrics component
     - Create component at `components/Performance/RiskMetrics.tsx`
     - Display Sharpe ratio, max drawdown, volatility
     - Add explanatory tooltips for each metric
@@ -330,14 +330,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Handle null values (display "N/A")
     - _Requirements: 9.1, 9.2, 9.3_
 
-  - [ ]* 12.2 Write unit tests for RiskMetrics
+  - [x]* 12.2 Write unit tests for RiskMetrics
     - Test metric display with valid data
     - Test "N/A" display for null values
     - Test tooltip rendering
     - Test handling of zero volatility
 
-- [~] 13. Calibration Analysis Component
-  - [~] 13.1 Create CalibrationAnalysis component
+- [x] 13. Calibration Analysis Component
+  - [x] 13.1 Create CalibrationAnalysis component
     - Create component at `components/Performance/CalibrationAnalysis.tsx`
     - Render scatter plot using Recharts ScatterChart
     - Plot confidence levels vs outcomes
@@ -347,7 +347,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Display average confidence for accurate vs inaccurate predictions
     - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-  - [ ]* 13.2 Write property test for calibration analysis
+  - [x]* 13.2 Write property test for calibration analysis
     - **Property 19: Calibration analysis calculation correctness**
     - **Validates: Requirements 10.1, 10.2**
     - Generate random recommendations with confidence and outcomes
@@ -355,14 +355,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify scatter plot data points match recommendations
     - Run 100 iterations minimum
 
-  - [ ]* 13.3 Write unit tests for CalibrationAnalysis
+  - [x]* 13.3 Write unit tests for CalibrationAnalysis
     - Test scatter plot rendering
     - Test calibration error calculation
     - Test highlighting of strong/poor calibration
     - Test average confidence segmentation
 
-- [~] 14. Baseline Comparison Component
-  - [~] 14.1 Create BaselineComparison component
+- [x] 14. Baseline Comparison Component
+  - [x] 14.1 Create BaselineComparison component
     - Create component at `components/Performance/BaselineComparison.tsx`
     - Display AI performance, buy-and-hold, and random strategy ROIs
     - Show side-by-side comparison with visual bars
@@ -371,14 +371,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Add explanatory text for each baseline
     - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5_
 
-  - [ ]* 14.2 Write unit tests for BaselineComparison
+  - [x]* 14.2 Write unit tests for BaselineComparison
     - Test baseline calculation display
     - Test AI outperformance highlighting
     - Test statistical significance display
     - Test handling of insufficient data
 
-- [~] 15. Export Functionality
-  - [~] 15.1 Create ExportButton component
+- [x] 15. Export Functionality
+  - [x] 15.1 Create ExportButton component
     - Create component at `components/Performance/ExportButton.tsx`
     - Generate CSV with all performance metrics
     - Include timestamps, recommendations, prices, calculated metrics
@@ -387,14 +387,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Show loading state during export
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5_
 
-  - [~] 15.2 Implement CSV generation utility
+  - [x] 15.2 Implement CSV generation utility
     - Create generatePerformanceCSV function
     - Use dynamic import for papaparse library
     - Format data for CSV export
     - Handle special characters in market titles
     - _Requirements: 13.2, 13.3_
 
-  - [ ]* 15.3 Write property test for CSV export completeness
+  - [x]* 15.3 Write property test for CSV export completeness
     - **Property 28: CSV export completeness**
     - **Validates: Requirements 13.2, 13.3, 13.5**
     - Generate random performance data
@@ -402,14 +402,14 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify filename format matches specification
     - Run 100 iterations minimum
 
-  - [ ]* 15.4 Write unit tests for ExportButton
+  - [x]* 15.4 Write unit tests for ExportButton
     - Test export button click triggers download
     - Test loading state during export
     - Test error handling for failed export
     - Test CSV content structure
 
-- [~] 16. Integration with Existing Pages
-  - [~] 16.1 Enhance performance page with ClosedMarketsGrid
+- [x] 16. Integration with Existing Pages
+  - [x] 16.1 Enhance performance page with ClosedMarketsGrid
     - Update `app/performance/page.tsx`
     - Replace existing ClosedMarketsList with ClosedMarketsGrid
     - Add pagination support using useInfiniteQuery
@@ -417,7 +417,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Maintain existing aggregate metrics display
     - _Requirements: 1.1, 1.2, 1.6, 2.1_
 
-  - [~] 16.2 Enhance market detail view with Performance tab
+  - [x] 16.2 Enhance market detail view with Performance tab
     - Update `app/market/[slug]/page.tsx` and `components/Trading/Markets/MarketDetails.tsx`
     - Add TabNavigation component
     - Conditionally render Performance tab for closed markets with recommendations
@@ -426,40 +426,40 @@ The implementation follows a phased approach: database and API setup, core compo
     - Pass market data to PerformanceTab
     - _Requirements: 2.2, 2.3, 3.1, 3.2, 3.3_
 
-  - [ ]* 16.3 Write integration test for performance page flow
+  - [x]* 16.3 Write integration test for performance page flow
     - Test closed markets display and navigation
     - Test pagination functionality
     - Test filter application
     - Test navigation to market detail
 
-  - [ ]* 16.4 Write integration test for market detail performance tab
+  - [x]* 16.4 Write integration test for market detail performance tab
     - Test tab navigation without page reload
     - Test Performance tab visibility based on recommendations
     - Test trading disabled for closed markets
     - Test all performance components render correctly
 
-- [~] 17. Mobile Optimization
-  - [~] 17.1 Implement responsive layouts
+- [x] 17. Mobile Optimization
+  - [x] 17.1 Implement responsive layouts
     - Add mobile breakpoints to all components
     - Stack charts vertically on mobile (< 768px)
     - Use single column grid for market cards on mobile
     - Ensure touch-friendly button sizes (min 44px)
     - _Requirements: 14.1, 14.2, 14.5_
 
-  - [~] 17.2 Optimize chart rendering for mobile
+  - [x] 17.2 Optimize chart rendering for mobile
     - Reduce data points for mobile (100 instead of 200)
     - Implement touch gestures for chart interaction
     - Use smaller font sizes for mobile labels
     - Test chart performance on mobile devices
     - _Requirements: 14.3, 11.4_
 
-  - [~] 17.3 Ensure text readability on mobile
+  - [x] 17.3 Ensure text readability on mobile
     - Set minimum font sizes (14px body, 12px labels)
     - Test contrast ratios for accessibility
     - Ensure number formatting fits mobile screens
     - _Requirements: 14.4_
 
-  - [ ]* 17.4 Write property test for mobile layout activation
+  - [x]* 17.4 Write property test for mobile layout activation
     - **Property 30: Mobile layout activation**
     - **Validates: Requirements 14.1, 14.2, 14.3, 14.5**
     - Test viewport widths from 320px to 1920px
@@ -467,41 +467,41 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify desktop layout activates at >= 768px
     - Run 100 iterations minimum
 
-  - [ ]* 17.5 Write unit tests for mobile responsiveness
+  - [x]* 17.5 Write unit tests for mobile responsiveness
     - Test component rendering at mobile viewport
     - Test touch-friendly button sizes
     - Test vertical stacking of charts
     - Test text readability at mobile sizes
 
-- [~] 18. Error Handling and Edge Cases
-  - [~] 18.1 Implement data fetching error handling
+- [x] 18. Error Handling and Edge Cases
+  - [x] 18.1 Implement data fetching error handling
     - Add error boundaries to all major components
     - Display clear error messages with retry buttons
     - Log errors for debugging
     - Fallback to cached data when available
     - _Requirements: 15.3_
 
-  - [~] 18.2 Handle incomplete data scenarios
+  - [x] 18.2 Handle incomplete data scenarios
     - Display warning banners for missing price history
     - Show "N/A" for calculations with insufficient data
     - Exclude incomplete recommendations from calculations
     - Provide explanatory messages for missing data
     - _Requirements: 15.1, 15.2_
 
-  - [~] 18.3 Implement calculation error handling
+  - [x] 18.3 Implement calculation error handling
     - Handle division by zero (return null, display "N/A")
     - Validate input data before calculations
     - Log warnings for invalid data
     - Don't crash application on calculation errors
     - _Requirements: 15.5_
 
-  - [~] 18.4 Add empty state handling
+  - [x] 18.4 Add empty state handling
     - Display empty state message when no closed markets
     - Display empty state when no recommendations
     - Provide helpful guidance in empty states
     - _Requirements: 15.4_
 
-  - [ ]* 18.5 Write property test for error handling
+  - [x]* 18.5 Write property test for error handling
     - **Property 32: Error handling for incomplete data**
     - **Validates: Requirements 15.1, 15.2**
     - Generate recommendations with missing fields
@@ -509,7 +509,7 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify incomplete data excluded from calculations
     - Run 100 iterations minimum
 
-  - [ ]* 18.6 Write property test for division by zero
+  - [x]* 18.6 Write property test for division by zero
     - **Property 35: Division by zero handling**
     - **Validates: Requirements 15.5**
     - Generate edge cases with zero values
@@ -517,34 +517,34 @@ The implementation follows a phased approach: database and API setup, core compo
     - Verify application doesn't crash
     - Run 100 iterations minimum
 
-  - [ ]* 18.7 Write unit tests for error scenarios
+  - [x]* 18.7 Write unit tests for error scenarios
     - Test API fetch failure handling
     - Test incomplete price history handling
     - Test missing recommendations handling
     - Test calculation errors handling
 
-- [~] 19. Performance Optimization
-  - [~] 19.1 Implement memoization for expensive calculations
+- [x] 19. Performance Optimization
+  - [x] 19.1 Implement memoization for expensive calculations
     - Use useMemo for all metric calculations
     - Use useCallback for event handlers
     - Memoize chart data transformations
     - _Requirements: 11.4_
 
-  - [~] 19.2 Implement code splitting
+  - [x] 19.2 Implement code splitting
     - Lazy load PriceChartWithMarkers component
     - Lazy load CalibrationAnalysis component
     - Use React.lazy() and Suspense
     - Add loading fallbacks
     - _Requirements: 11.4_
 
-  - [~] 19.3 Configure TanStack Query caching
+  - [x] 19.3 Configure TanStack Query caching
     - Set staleTime for closed market data (10-30 minutes)
     - Set gcTime for garbage collection (30 minutes)
     - Disable refetchOnWindowFocus for closed markets
     - Implement prefetching for next page and hovered markets
     - _Requirements: 11.4_
 
-  - [ ]* 19.4 Write unit tests for caching behavior
+  - [x]* 19.4 Write unit tests for caching behavior
     - Test cache hit for repeated queries
     - Test staleTime configuration
     - Test prefetching behavior
@@ -552,21 +552,21 @@ The implementation follows a phased approach: database and API setup, core compo
 - [x] 20. Final Checkpoint - Comprehensive Testing
   - Ensure all tests pass, ask the user if questions arise.
 
-- [~] 21. Documentation and Polish
-  - [~] 21.1 Add component documentation
+- [x] 21. Documentation and Polish
+  - [x] 21.1 Add component documentation
     - Document props and usage for all new components
     - Add JSDoc comments to utility functions
     - Document API endpoints and response formats
     - _Requirements: All_
 
-  - [~] 21.2 Add accessibility features
+  - [x] 21.2 Add accessibility features
     - Ensure keyboard navigation works for all interactive elements
     - Add ARIA labels to charts and interactive components
     - Test with screen readers
     - Ensure color contrast meets WCAG standards
     - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5_
 
-  - [~] 21.3 Final integration testing
+  - [x] 21.3 Final integration testing
     - Test complete user flow from performance page to market detail
     - Test all filters and pagination
     - Test export functionality end-to-end
