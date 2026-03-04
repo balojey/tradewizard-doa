@@ -263,6 +263,7 @@ class LangGraphConfig:
     """LangGraph workflow configuration."""
     checkpointer_type: str  # "memory", "sqlite", "postgres"
     sqlite_path: Optional[str]
+    recursion_limit: int  # Maximum number of workflow steps before raising recursion error
     
     def validate(self) -> List[str]:
         """Validate LangGraph configuration."""
@@ -276,6 +277,9 @@ class LangGraphConfig:
             
         if self.checkpointer_type == "sqlite" and not self.sqlite_path:
             errors.append("LANGGRAPH_SQLITE_PATH is required when using sqlite checkpointer")
+        
+        if self.recursion_limit < 1:
+            errors.append("LANGGRAPH_RECURSION_LIMIT must be at least 1")
             
         return errors
 
@@ -332,6 +336,7 @@ class EngineConfig:
             "langgraph": {
                 "checkpointer_type": self.langgraph.checkpointer_type,
                 "sqlite_path": self.langgraph.sqlite_path,
+                "recursion_limit": self.langgraph.recursion_limit,
             },
             "llm": {
                 "model_names": self.llm.model_names,
@@ -420,7 +425,8 @@ def load_config() -> EngineConfig:
     # LangGraph configuration
     langgraph = LangGraphConfig(
         checkpointer_type=os.getenv("LANGGRAPH_CHECKPOINTER", "memory"),
-        sqlite_path=os.getenv("LANGGRAPH_SQLITE_PATH", "./checkpoints.db")
+        sqlite_path=os.getenv("LANGGRAPH_SQLITE_PATH", "./checkpoints.db"),
+        recursion_limit=int(os.getenv("LANGGRAPH_RECURSION_LIMIT", "100"))
     )
     
     # LLM configuration

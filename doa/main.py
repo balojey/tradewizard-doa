@@ -527,8 +527,11 @@ async def analyze_market(
             "memory_context": {}
         }
         
-        # Create config for graph invocation with thread_id
-        graph_config = {"configurable": {"thread_id": thread_id}}
+        # Create config for graph invocation with thread_id and recursion_limit
+        graph_config = {
+            "configurable": {"thread_id": thread_id},
+            "recursion_limit": config.langgraph.recursion_limit
+        }
         
         # Invoke graph (Opik tracking is already wrapped around the graph)
         logger.info("Starting workflow execution...")
