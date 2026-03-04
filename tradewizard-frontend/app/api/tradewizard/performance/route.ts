@@ -1,14 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+function generateMarketSlug(question: string, marketId: string): string {
+  // Convert question to URL-friendly slug
+  const slug = question
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .substring(0, 60); // Limit length
+  
+  // Add market ID suffix for uniqueness
+  const idSuffix = marketId.substring(0, 8);
+  return `${slug}-${idSuffix}`;
+}
+
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const timeframe = searchParams.get("timeframe") || "all"; // all, 30d, 90d, 1y
   const category = searchParams.get("category") || "all";
   const confidence = searchParams.get("confidence") || "all";
-  const limit = parseInt(searchParams.get("limit") || "50");
+  const limit = parseInt(searchParams.get("limit") || "20");
+  const offset = parseInt(searchParams.get("offset") || "0");
+  const includeSlug = searchParams.get("includeSlug") === "true";
 
   try {
+    // First, get total count for pagination
+    let countQuery = supabase
+      .from("v_closed_markets_performance")
+      .select("*", { count: "exact", head: true })
+      .not("recommendation_was_correct", "is", null);
+
+    // Apply same filters to count query
+    if (timeframe !== "all") {
+      const daysAgo = timeframe === "30d" ? 30 : timeframe === "90d" ? 90 : 365;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysAgo);
+      countQuery = countQuery.gte("resolution_date", cutoffDate.toISOString());
+    }
+
+    if (category !== "all") {
+      countQuery = countQuery.eq("event_type", category);
+    }
+
+    if (confidence !== "all") {
+      countQuery = countQuery.eq("confidence", confidence);
+    }
+
+    const { count: totalCount, error: countError } = await countQuery;
+
+    if (countError) {
+      console.error("Error fetching count:", countError);
+    }
+
     // Build the base query for closed markets with performance data
     let query = supabase
       .from("v_closed_markets_performance")
@@ -34,8 +77,8 @@ export async function GET(request: NextRequest) {
       query = query.eq("confidence", confidence);
     }
 
-    // Apply limit
-    query = query.limit(limit);
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
 
     const { data: closedMarkets, error: marketsError } = await query;
 
@@ -45,6 +88,17 @@ export async function GET(request: NextRequest) {
         { error: "Failed to fetch closed markets performance data" },
         { status: 500 }
       );
+    }
+
+    // Add slug to markets if requested (for navigation)
+    let marketsWithSlug = closedMarkets || [];
+    if (includeSlug && marketsWithSlug.length > 0) {
+      marketsWithSlug = marketsWithSlug.map(market => ({
+        ...market,
+        slug: market.question && market.market_id 
+          ? generateMarketSlug(market.question, market.market_id)
+          : `market-${market.market_id || 'unknown'}`,
+      }));
     }
 
     // Fetch performance summary
@@ -99,10 +153,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate additional metrics from the closed markets data
-    const metrics = calculatePerformanceMetrics(closedMarkets || []);
+    const metrics = calculatePerformanceMetrics(marketsWithSlug);
 
     return NextResponse.json({
-      closedMarkets: closedMarkets || [],
+      closedMarkets: marketsWithSlug,
       summary: performanceSummary || null,
       performanceByConfidence: performanceByConfidence || [],
       performanceByAgent: performanceByAgent || [],
@@ -114,6 +168,12 @@ export async function GET(request: NextRequest) {
         category,
         confidence,
         limit,
+      },
+      pagination: {
+        total: totalCount || 0,
+        offset,
+        limit,
+        hasMore: totalCount ? offset + limit < totalCount : false,
       },
     });
   } catch (error) {
