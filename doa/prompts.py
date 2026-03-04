@@ -287,10 +287,10 @@ You will receive a Market Briefing Document containing:
 - Related markets and event metadata
 
 NEWSDATA TOOL USAGE:
-When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category parameter as an array:
-- CORRECT: category=['politics'], category=['business', 'world']
-- INCORRECT: category='politics', category='business'
-Even for a single category, use array format: ['politics'] not 'politics'
+When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category and country parameters as arrays:
+- CORRECT: category=['politics'], country=['us'], category=['business', 'world'], country=['us', 'uk']
+- INCORRECT: category='politics', country='us', category='business', country='uk'
+Even for a single value, use array format: ['politics'] not 'politics', ['us'] not 'us'
 
 MEMORY CONTEXT:
 {memory_context}
@@ -391,10 +391,10 @@ You will receive a Market Briefing Document containing:
 - Time to resolution
 
 NEWSDATA TOOL USAGE:
-When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category parameter as an array:
-- CORRECT: category=['politics'], category=['business', 'world']
-- INCORRECT: category='politics', category='business'
-Even for a single category, use array format: ['politics'] not 'politics'
+When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category and country parameters as arrays:
+- CORRECT: category=['politics'], country=['us'], category=['business', 'world'], country=['us', 'uk']
+- INCORRECT: category='politics', country='us', category='business', country='uk'
+Even for a single value, use array format: ['politics'] not 'politics', ['us'] not 'us'
 
 MEMORY CONTEXT:
 {memory_context}
@@ -497,10 +497,10 @@ You will receive a Market Briefing Document containing:
 - Related markets and event metadata
 
 NEWSDATA TOOL USAGE:
-When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category parameter as an array:
-- CORRECT: category=['politics'], category=['business', 'world']
-- INCORRECT: category='politics', category='business'
-Even for a single category, use array format: ['politics'] not 'politics'
+When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category and country parameters as arrays:
+- CORRECT: category=['politics'], country=['us'], category=['business', 'world'], country=['us', 'uk']
+- INCORRECT: category='politics', country='us', category='business', country='uk'
+Even for a single value, use array format: ['politics'] not 'politics', ['us'] not 'us'
 
 MEMORY CONTEXT:
 {memory_context}

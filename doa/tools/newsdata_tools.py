@@ -31,7 +31,7 @@ class FetchLatestNewsInput(BaseModel):
     )
     country: Optional[List[str]] = Field(
         None,
-        description="Country codes (e.g., ['us', 'uk', 'ca']). Filters by article source country."
+        description="Country codes as an array (e.g., ['us', 'uk', 'ca']). IMPORTANT: Always provide as an array, even for a single country (e.g., ['us'] not 'us'). Filters by article source country."
     )
     category: Optional[List[str]] = Field(
         None,
@@ -80,7 +80,7 @@ class FetchArchiveNewsInput(BaseModel):
     )
     country: Optional[List[str]] = Field(
         None,
-        description="Country codes to filter by source country"
+        description="Country codes as an array (e.g., ['us', 'uk']). IMPORTANT: Always provide as an array, even for a single country (e.g., ['us'] not 'us')."
     )
     category: Optional[List[str]] = Field(
         None,
@@ -190,7 +190,7 @@ class FetchMarketNewsInput(BaseModel):
     )
     country: Optional[List[str]] = Field(
         None,
-        description="Country codes to filter by source country"
+        description="Country codes as an array (e.g., ['us', 'uk']). IMPORTANT: Always provide as an array, even for a single country (e.g., ['us'] not 'us')."
     )
     language: List[str] = Field(
         ["en"],
@@ -443,7 +443,7 @@ def create_fetch_latest_news_tool(context: ToolContext) -> StructuredTool:
     
     return StructuredTool(
         name="fetch_latest_news",
-        description="Fetch latest news from the past 48 hours with filtering options. Valid categories: ['business'], ['entertainment'], ['environment'], ['food'], ['health'], ['politics'], ['science'], ['sports'], ['technology'], ['top'], ['tourism'], ['world']. IMPORTANT: Always provide category as an array, even for a single category (e.g., category=['politics'] not category='politics').",
+        description="Fetch latest news from the past 48 hours with filtering options. Valid categories: ['business'], ['entertainment'], ['environment'], ['food'], ['health'], ['politics'], ['science'], ['sports'], ['technology'], ['top'], ['tourism'], ['world']. IMPORTANT: Always provide category and country as arrays, even for a single value (e.g., category=['politics'], country=['us'] not category='politics', country='us').",
         args_schema=FetchLatestNewsInput,
         func=fetch_latest_news,
         coroutine=fetch_latest_news
@@ -509,7 +509,7 @@ def create_fetch_archive_news_tool(context: ToolContext) -> StructuredTool:
     
     return StructuredTool(
         name="fetch_archive_news",
-        description="Fetch historical news with date range filtering. Valid categories: ['business'], ['entertainment'], ['environment'], ['food'], ['health'], ['politics'], ['science'], ['sports'], ['technology'], ['top'], ['tourism'], ['world']. IMPORTANT: Always provide category as an array, even for a single category (e.g., category=['politics'] not category='politics').",
+        description="Fetch historical news with date range filtering. Valid categories: ['business'], ['entertainment'], ['environment'], ['food'], ['health'], ['politics'], ['science'], ['sports'], ['technology'], ['top'], ['tourism'], ['world']. IMPORTANT: Always provide category and country as arrays, even for a single value (e.g., category=['politics'], country=['us'] not category='politics', country='us').",
         args_schema=FetchArchiveNewsInput,
         func=fetch_archive_news,
         coroutine=fetch_archive_news

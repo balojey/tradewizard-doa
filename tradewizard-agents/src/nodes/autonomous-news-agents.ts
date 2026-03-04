@@ -103,10 +103,10 @@ You have access to the following tools to gather news data:
 4. fetchMarketNews: Get financial market and company news
 
 CRITICAL TOOL USAGE RULE:
-When using newsdata tools, ALWAYS provide the categories parameter as an array:
-- CORRECT: categories: ["politics"], categories: ["business", "world"]
-- INCORRECT: categories: "politics", categories: "business"
-Even for a single category, use array format: ["politics"] not "politics"
+When using newsdata tools, ALWAYS provide the categories and countries parameters as arrays:
+- CORRECT: categories: ["politics"], countries: ["us"], categories: ["business", "world"], countries: ["us", "uk"]
+- INCORRECT: categories: "politics", countries: "us", categories: "business", countries: "uk"
+Even for a single value, use array format: ["politics"] not "politics", ["us"] not "us"
 
 ANALYSIS STRATEGY:
 Based on the market characteristics, intelligently decide which tools to use:
@@ -168,10 +168,10 @@ You have access to the following tools to gather news data:
 4. fetchMarketNews: Get financial market and company news
 
 CRITICAL TOOL USAGE RULE:
-When using newsdata tools, ALWAYS provide the categories parameter as an array:
-- CORRECT: categories: ["politics"], categories: ["business", "world"]
-- INCORRECT: categories: "politics", categories: "business"
-Even for a single category, use array format: ["politics"] not "politics"
+When using newsdata tools, ALWAYS provide the categories and countries parameters as arrays:
+- CORRECT: categories: ["politics"], countries: ["us"], categories: ["business", "world"], countries: ["us", "uk"]
+- INCORRECT: categories: "politics", countries: "us", categories: "business", countries: "uk"
+Even for a single value, use array format: ["politics"] not "politics", ["us"] not "us"
 
 ANALYSIS STRATEGY:
 Based on the market characteristics, intelligently decide which tools to use:
@@ -232,10 +232,10 @@ You have access to the following tools to gather news data:
 1. fetchLatestNews: Get the latest news from the past 48 hours with filtering options
 
 CRITICAL TOOL USAGE RULE:
-When using newsdata tools, ALWAYS provide the categories parameter as an array:
-- CORRECT: categories: ["politics"], categories: ["business", "world"]
-- INCORRECT: categories: "politics", categories: "business"
-Even for a single category, use array format: ["politics"] not "politics"
+When using newsdata tools, ALWAYS provide the categories and countries parameters as arrays:
+- CORRECT: categories: ["politics"], countries: ["us"], categories: ["business", "world"], countries: ["us", "uk"]
+- INCORRECT: categories: "politics", countries: "us", categories: "business", countries: "uk"
+Even for a single value, use array format: ["politics"] not "politics", ["us"] not "us"
 2. fetchArchiveNews: Get historical news with date range filtering
 3. fetchCryptoNews: Get cryptocurrency-related news
 4. fetchMarketNews: Get financial market and company news
