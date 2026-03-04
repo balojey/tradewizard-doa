@@ -120,7 +120,7 @@ export default function PerformanceTab({
           message="This market did not receive AI recommendations during its active period. The AI system may not have had sufficient data or confidence to generate predictions for this market."
           action={{
             label: "View All Markets",
-            onClick: () => window.location.href = "/performance"
+            onClick: () => window.location.href = "/history"
           }}
         />
       </div>

@@ -108,10 +108,10 @@ export default function PerformancePage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
               <div>
                 <h1 className="text-4xl font-bold text-white tracking-tight mb-2">
-                  Performance Dashboard
+                  Market History
                 </h1>
                 <p className="text-gray-400 text-lg max-w-2xl">
-                  Comprehensive analysis of AI prediction accuracy and returns
+                  Track AI prediction accuracy and returns on resolved markets
                 </p>
               </div>
             </div>
@@ -126,7 +126,7 @@ export default function PerformancePage() {
         <div className="space-y-10">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold text-white tracking-tight">
-              Performance Dashboard
+              Market History
             </h1>
             <p className="text-gray-400 text-lg">
               Analyzing TradeWizard AI recommendation accuracy on resolved markets
@@ -146,7 +146,7 @@ export default function PerformancePage() {
         <div className="space-y-10">
           <div className="space-y-2">
             <h1 className="text-4xl font-bold text-white tracking-tight">
-              Performance Dashboard
+              Market History
             </h1>
             <p className="text-gray-400 text-lg">
               Analyzing TradeWizard AI recommendation accuracy on resolved markets
@@ -178,10 +178,10 @@ export default function PerformancePage() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
             <div>
               <h1 className="text-4xl font-bold text-white tracking-tight mb-2">
-                Performance Dashboard
+                Market History
               </h1>
               <p className="text-gray-400 text-lg max-w-2xl">
-                Comprehensive analysis of AI prediction accuracy and returns
+                Track AI prediction accuracy and returns on resolved markets
               </p>
             </div>
             <div className="text-right hidden md:block">
