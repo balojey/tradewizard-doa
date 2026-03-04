@@ -17,7 +17,7 @@ const PriceChartWithMarkers = lazy(() => import("@/components/Performance/PriceC
 const CalibrationAnalysis = lazy(() => import("@/components/Performance/CalibrationAnalysis"));
 
 interface PerformanceTabProps {
-  marketId: string;
+  marketId: string; // Polymarket condition_id (used for API queries)
   conditionId: string;
   resolvedOutcome: string;
   resolutionDate: string;
@@ -36,8 +36,8 @@ interface PerformanceTabProps {
  * - Calibration analysis
  * - Baseline strategy comparisons
  * 
- * @param marketId - The market ID to fetch performance data for
- * @param conditionId - The Polymarket condition ID
+ * @param marketId - The Polymarket condition_id to fetch performance data for
+ * @param conditionId - The Polymarket condition ID (same as marketId, kept for compatibility)
  * @param resolvedOutcome - The final market resolution (YES/NO)
  * @param resolutionDate - ISO timestamp of market resolution
  * 
@@ -51,6 +51,14 @@ export default function PerformanceTab({
 }: PerformanceTabProps) {
   const { data, isLoading, error, refetch } = useMarketPerformance(marketId);
 
+  // Data validation warning - memoized to avoid recalculation
+  // MUST be called before any conditional returns (Rules of Hooks)
+  const hasIncompleteData = useMemo(() => {
+    return data?.recommendations?.some(
+      (rec) => !rec.entryPrice || rec.entryPrice === 0
+    ) ?? false;
+  }, [data?.recommendations]);
+
   // Log errors for debugging
   React.useEffect(() => {
     if (error) {
@@ -62,6 +70,21 @@ export default function PerformanceTab({
       });
     }
   }, [error, marketId, conditionId]);
+
+  // Log warning for incomplete data
+  React.useEffect(() => {
+    if (hasIncompleteData && data?.recommendations) {
+      const incompleteCount = data.recommendations.filter(
+        (rec) => !rec.entryPrice || rec.entryPrice === 0
+      ).length;
+      
+      logWarning("Incomplete price data detected in recommendations", {
+        component: "PerformanceTab",
+        marketId,
+        incompleteCount,
+      });
+    }
+  }, [hasIncompleteData, data?.recommendations, marketId]);
 
   // Loading state
   if (isLoading) {
@@ -103,28 +126,6 @@ export default function PerformanceTab({
       </div>
     );
   }
-
-  // Data validation warning - memoized to avoid recalculation
-  const hasIncompleteData = useMemo(() => {
-    return data?.recommendations?.some(
-      (rec) => !rec.entryPrice || rec.entryPrice === 0
-    ) ?? false;
-  }, [data?.recommendations]);
-
-  // Log warning for incomplete data
-  React.useEffect(() => {
-    if (hasIncompleteData && data?.recommendations) {
-      const incompleteCount = data.recommendations.filter(
-        (rec) => !rec.entryPrice || rec.entryPrice === 0
-      ).length;
-      
-      logWarning("Incomplete price data detected in recommendations", {
-        component: "PerformanceTab",
-        marketId,
-        incompleteCount,
-      });
-    }
-  }, [hasIncompleteData, data?.recommendations, marketId]);
 
   return (
     <ErrorBoundary resetKeys={[marketId]}>

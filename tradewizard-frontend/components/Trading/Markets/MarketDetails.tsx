@@ -414,7 +414,7 @@ export default function MarketDetails({ market }: MarketDetailsProps) {
                             {activeTab === 'performance' && hasRecommendations && (
                                 <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
                                     <PerformanceTab
-                                        marketId={market.id}
+                                        marketId={market.conditionId || ''}
                                         conditionId={market.conditionId || ''}
                                         resolvedOutcome={market.winningOutcome || 'Unknown'}
                                         resolutionDate={market.resolvedAt || market.endDate || new Date().toISOString()}

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
 interface RouteContext {
-  params: Promise<{ marketId: string }>;
+  params: Promise<{ marketId: string }>; // This is actually the Polymarket condition_id
 }
 
 export async function GET(
@@ -10,7 +10,7 @@ export async function GET(
   context: RouteContext
 ) {
   try {
-    const { marketId } = await context.params;
+    const { marketId } = await context.params; // This is the Polymarket condition_id from the URL
 
     if (!marketId) {
       return NextResponse.json(
@@ -20,11 +20,12 @@ export async function GET(
     }
 
     // Fetch recommendations for this market
+    // Note: marketId parameter is actually the Polymarket condition_id, not our database UUID
     // For active markets, query from base tables; for closed markets, use the performance view
     const { data: market, error: marketError } = await supabase
       .from("markets")
       .select("id, condition_id, question, event_type, status, resolved_outcome")
-      .eq("id", marketId)
+      .eq("condition_id", marketId)
       .single();
 
     if (marketError || !market) {
@@ -42,16 +43,20 @@ export async function GET(
 
     if (isResolved) {
       // For resolved markets, use the performance view with outcome data
+      // Use the database UUID (market.id) for querying recommendations
       const result = await supabase
         .from("v_closed_markets_performance")
         .select("*")
-        .eq("market_id", marketId)
-        .order("recommendation_created_at", { ascending: true });
+        .eq("market_id", market.id)
+        .order("recommendation_created_at", { ascending: false });
       
       recommendations = result.data;
       recError = result.error;
     } else {
       // For active markets, query recommendations directly
+      // Use the database UUID (market.id) for querying recommendations
+      // Note: market_probability_at_recommendation is not in recommendations table,
+      // we'll calculate it from entry_zone_max (approximation)
       const result = await supabase
         .from("recommendations")
         .select(`
@@ -65,11 +70,10 @@ export async function GET(
           entry_zone_min,
           entry_zone_max,
           explanation,
-          created_at,
-          market_probability_at_recommendation
+          created_at
         `)
-        .eq("market_id", marketId)
-        .order("created_at", { ascending: true });
+        .eq("market_id", market.id)
+        .order("created_at", { ascending: false });
       
       recommendations = result.data;
       recError = result.error;
@@ -107,10 +111,11 @@ export async function GET(
     };
 
     // Fetch agent signals for this market (if available)
+    // Use the database UUID (market.id) for querying agent signals
     const { data: agentSignals, error: signalsError } = await supabase
       .from("agent_signals")
       .select("agent_name, direction, agent_probability, agent_confidence")
-      .eq("market_id", marketId)
+      .eq("market_id", market.id)
       .order("created_at", { ascending: false })
       .limit(50);
 
@@ -145,6 +150,9 @@ export async function GET(
         };
       } else {
         // Data from recommendations table (active market)
+        // Estimate market price from entry zone (midpoint approximation)
+        const estimatedMarketPrice = (rec.entry_zone_min + rec.entry_zone_max) / 2;
+        
         return {
           id: rec.id,
           marketId: rec.market_id,
@@ -161,9 +169,9 @@ export async function GET(
           wasCorrect: false, // Unknown for active markets
           roiRealized: 0, // Cannot calculate for active markets
           edgeCaptured: 0,
-          marketPriceAtRecommendation: rec.market_probability_at_recommendation,
+          marketPriceAtRecommendation: estimatedMarketPrice,
           resolutionDate: new Date().toISOString(),
-          entryPrice: rec.market_probability_at_recommendation,
+          entryPrice: estimatedMarketPrice,
           exitPrice: undefined, // No exit price for active markets
         };
       }
