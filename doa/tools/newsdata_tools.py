@@ -84,7 +84,7 @@ class FetchArchiveNewsInput(BaseModel):
     )
     category: Optional[List[str]] = Field(
         None,
-        description="News categories. Valid values: business, entertainment, environment, food, health, politics, science, sports, technology, top, tourism, world. Do NOT use 'finance' - use 'business' instead."
+        description="News categories as an array. Valid values: ['business'], ['entertainment'], ['environment'], ['food'], ['health'], ['politics'], ['science'], ['sports'], ['technology'], ['top'], ['tourism'], ['world']. IMPORTANT: Always provide as an array, even for a single category (e.g., ['politics'] not 'politics'). Do NOT use 'finance' - use 'business' instead."
     )
     language: List[str] = Field(
         ["en"],
@@ -443,7 +443,7 @@ def create_fetch_latest_news_tool(context: ToolContext) -> StructuredTool:
     
     return StructuredTool(
         name="fetch_latest_news",
-        description="Fetch latest news from the past 48 hours with filtering options. Valid categories: business, entertainment, environment, food, health, politics, science, sports, technology, top, tourism, world",
+        description="Fetch latest news from the past 48 hours with filtering options. Valid categories: ['business'], ['entertainment'], ['environment'], ['food'], ['health'], ['politics'], ['science'], ['sports'], ['technology'], ['top'], ['tourism'], ['world']. IMPORTANT: Always provide category as an array, even for a single category (e.g., category=['politics'] not category='politics').",
         args_schema=FetchLatestNewsInput,
         func=fetch_latest_news,
         coroutine=fetch_latest_news
@@ -509,7 +509,7 @@ def create_fetch_archive_news_tool(context: ToolContext) -> StructuredTool:
     
     return StructuredTool(
         name="fetch_archive_news",
-        description="Fetch historical news with date range filtering. Valid categories: business, entertainment, environment, food, health, politics, science, sports, technology, top, tourism, world",
+        description="Fetch historical news with date range filtering. Valid categories: ['business'], ['entertainment'], ['environment'], ['food'], ['health'], ['politics'], ['science'], ['sports'], ['technology'], ['top'], ['tourism'], ['world']. IMPORTANT: Always provide category as an array, even for a single category (e.g., category=['politics'] not category='politics').",
         args_schema=FetchArchiveNewsInput,
         func=fetch_archive_news,
         coroutine=fetch_archive_news

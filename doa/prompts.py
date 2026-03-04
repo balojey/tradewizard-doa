@@ -286,6 +286,12 @@ You will receive a Market Briefing Document containing:
 - Time to resolution
 - Related markets and event metadata
 
+NEWSDATA TOOL USAGE:
+When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category parameter as an array:
+- CORRECT: category=['politics'], category=['business', 'world']
+- INCORRECT: category='politics', category='business'
+Even for a single category, use array format: ['politics'] not 'politics'
+
 MEMORY CONTEXT:
 {memory_context}
 
@@ -383,6 +389,12 @@ You will receive a Market Briefing Document containing:
 - Bid-ask spread (consensus strength)
 - Event type and context
 - Time to resolution
+
+NEWSDATA TOOL USAGE:
+When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category parameter as an array:
+- CORRECT: category=['politics'], category=['business', 'world']
+- INCORRECT: category='politics', category='business'
+Even for a single category, use array format: ['politics'] not 'politics'
 
 MEMORY CONTEXT:
 {memory_context}
@@ -483,6 +495,12 @@ You will receive a Market Briefing Document containing:
 - Event-related keywords and tags
 - Time to resolution
 - Related markets and event metadata
+
+NEWSDATA TOOL USAGE:
+When using newsdata tools (fetch_latest_news, fetch_archive_news), ALWAYS provide the category parameter as an array:
+- CORRECT: category=['politics'], category=['business', 'world']
+- INCORRECT: category='politics', category='business'
+Even for a single category, use array format: ['politics'] not 'politics'
 
 MEMORY CONTEXT:
 {memory_context}

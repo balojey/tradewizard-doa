@@ -102,6 +102,12 @@ You have access to the following tools to gather news data:
 3. fetchCryptoNews: Get cryptocurrency-related news
 4. fetchMarketNews: Get financial market and company news
 
+CRITICAL TOOL USAGE RULE:
+When using newsdata tools, ALWAYS provide the categories parameter as an array:
+- CORRECT: categories: ["politics"], categories: ["business", "world"]
+- INCORRECT: categories: "politics", categories: "business"
+Even for a single category, use array format: ["politics"] not "politics"
+
 ANALYSIS STRATEGY:
 Based on the market characteristics, intelligently decide which tools to use:
 
@@ -161,6 +167,12 @@ You have access to the following tools to gather news data:
 3. fetchCryptoNews: Get cryptocurrency-related news
 4. fetchMarketNews: Get financial market and company news
 
+CRITICAL TOOL USAGE RULE:
+When using newsdata tools, ALWAYS provide the categories parameter as an array:
+- CORRECT: categories: ["politics"], categories: ["business", "world"]
+- INCORRECT: categories: "politics", categories: "business"
+Even for a single category, use array format: ["politics"] not "politics"
+
 ANALYSIS STRATEGY:
 Based on the market characteristics, intelligently decide which tools to use:
 
@@ -218,6 +230,12 @@ AVAILABLE TOOLS:
 You have access to the following tools to gather news data:
 
 1. fetchLatestNews: Get the latest news from the past 48 hours with filtering options
+
+CRITICAL TOOL USAGE RULE:
+When using newsdata tools, ALWAYS provide the categories parameter as an array:
+- CORRECT: categories: ["politics"], categories: ["business", "world"]
+- INCORRECT: categories: "politics", categories: "business"
+Even for a single category, use array format: ["politics"] not "politics"
 2. fetchArchiveNews: Get historical news with date range filtering
 3. fetchCryptoNews: Get cryptocurrency-related news
 4. fetchMarketNews: Get financial market and company news
