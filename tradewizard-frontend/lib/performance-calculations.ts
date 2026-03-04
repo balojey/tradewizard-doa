@@ -5,6 +5,12 @@
  * All calculations follow the specifications in the design document and handle edge cases
  * gracefully by returning null for invalid inputs.
  * 
+ * Error Handling Strategy:
+ * - Division by zero returns null and displays "N/A" in UI
+ * - Invalid input data is validated before calculations
+ * - Warnings are logged for invalid data without crashing
+ * - Calculations skip invalid entries and continue processing
+ * 
  * @module performance-calculations
  */
 
@@ -12,6 +18,27 @@
  * Polymarket trading fee (2% on winning positions only)
  */
 const POLYMARKET_FEE = 0.02;
+
+/**
+ * Validates that a number is finite and not NaN
+ */
+function isValidNumber(value: any): value is number {
+  return typeof value === 'number' && isFinite(value) && !isNaN(value);
+}
+
+/**
+ * Validates that a price is within valid range [0, 1]
+ */
+function isValidPrice(price: any): price is number {
+  return isValidNumber(price) && price >= 0 && price <= 1;
+}
+
+/**
+ * Logs a warning message for invalid data
+ */
+function logWarning(message: string, context?: Record<string, any>): void {
+  console.warn(`[Performance Calculations] ${message}`, context || '');
+}
 
 /**
  * Represents a single simulated trade based on an AI recommendation
@@ -64,14 +91,24 @@ export interface SimulatedPortfolio {
  */
 export interface RecommendationWithOutcome {
   id: string;
+  marketId: string;
   direction: 'LONG_YES' | 'LONG_NO' | 'NO_TRADE';
-  marketPriceAtRecommendation: number;
-  exitPrice?: number;
+  confidence: 'high' | 'moderate' | 'low';
+  fairProbability: number;
+  marketEdge: number;
+  expectedValue: number;
+  entryZoneMin: number;
+  entryZoneMax: number;
+  explanation: string;
+  createdAt: string;
   actualOutcome: string;
   wasCorrect: boolean;
-  createdAt: string;
-  fairProbability: number;
-  confidence: 'high' | 'moderate' | 'low';
+  roiRealized: number;
+  edgeCaptured: number;
+  marketPriceAtRecommendation: number;
+  resolutionDate: string;
+  entryPrice: number;
+  exitPrice?: number;
 }
 
 /**
@@ -154,7 +191,38 @@ export function calculateSimulatedPortfolio(
   recommendations: RecommendationWithOutcome[],
   investmentAmount: number
 ): SimulatedPortfolio {
-  if (!recommendations || recommendations.length === 0 || investmentAmount <= 0) {
+  // Validate input parameters
+  if (!recommendations || !Array.isArray(recommendations)) {
+    logWarning('Invalid recommendations array provided', { recommendations });
+    return {
+      trades: [],
+      cumulative: [],
+      summary: {
+        totalPL: 0,
+        totalROI: 0,
+        winRate: 0,
+        avgWin: 0,
+        avgLoss: 0,
+      },
+    };
+  }
+
+  if (!isValidNumber(investmentAmount) || investmentAmount <= 0) {
+    logWarning('Invalid investment amount', { investmentAmount });
+    return {
+      trades: [],
+      cumulative: [],
+      summary: {
+        totalPL: 0,
+        totalROI: 0,
+        winRate: 0,
+        avgWin: 0,
+        avgLoss: 0,
+      },
+    };
+  }
+
+  if (recommendations.length === 0) {
     return {
       trades: [],
       cumulative: [],
@@ -178,30 +246,88 @@ export function calculateSimulatedPortfolio(
   tradableRecs.forEach((rec) => {
     const entryPrice = rec.marketPriceAtRecommendation;
     
+    // Validate entry price exists and is valid
+    if (!isValidPrice(entryPrice)) {
+      logWarning('Invalid or missing entry price for recommendation', { 
+        recommendationId: rec.id, 
+        entryPrice 
+      });
+      return; // Skip this recommendation
+    }
+    
+    // Division by zero check for entry price
+    if (entryPrice === 0) {
+      logWarning('Entry price is zero, cannot calculate shares', { 
+        recommendationId: rec.id 
+      });
+      return; // Skip this recommendation
+    }
+    
     // Use exit price if available, otherwise use resolution price (1 for YES, 0 for NO)
     let exitPrice = rec.exitPrice;
     if (exitPrice === undefined || exitPrice === null) {
+      // Check if we have a valid resolution outcome
+      if (rec.actualOutcome !== 'YES' && rec.actualOutcome !== 'NO') {
+        logWarning('Missing exit price and resolution outcome for recommendation', { 
+          recommendationId: rec.id,
+          actualOutcome: rec.actualOutcome
+        });
+        return; // Skip this recommendation
+      }
       exitPrice = rec.actualOutcome === 'YES' ? 1 : 0;
     }
 
-    // Validate prices are in valid range [0, 1]
-    if (entryPrice <= 0 || entryPrice > 1 || exitPrice < 0 || exitPrice > 1) {
-      console.warn(`Invalid prices for recommendation ${rec.id}: entry=${entryPrice}, exit=${exitPrice}`);
+    // Validate exit price is in valid range [0, 1]
+    if (!isValidPrice(exitPrice)) {
+      logWarning('Invalid exit price for recommendation', { 
+        recommendationId: rec.id, 
+        exitPrice 
+      });
       return; // Skip this recommendation
     }
 
-    // Calculate shares purchased
+    // Calculate shares purchased (safe after division by zero check)
     const shares = investmentAmount / entryPrice;
+
+    // Validate shares calculation
+    if (!isValidNumber(shares)) {
+      logWarning('Invalid shares calculation', { 
+        recommendationId: rec.id, 
+        shares, 
+        investmentAmount, 
+        entryPrice 
+      });
+      return; // Skip this recommendation
+    }
 
     // Calculate gross P/L
     const grossPL = shares * (exitPrice - entryPrice);
+
+    // Validate gross P/L
+    if (!isValidNumber(grossPL)) {
+      logWarning('Invalid gross P/L calculation', { 
+        recommendationId: rec.id, 
+        grossPL 
+      });
+      return; // Skip this recommendation
+    }
 
     // Apply fees only on winning positions (2% of gross profit)
     const fees = grossPL > 0 ? grossPL * POLYMARKET_FEE : 0;
     const netPL = grossPL - fees;
 
-    // Calculate ROI as percentage
+    // Calculate ROI as percentage (safe after division by zero check)
     const roi = (netPL / investmentAmount) * 100;
+
+    // Validate final calculations
+    if (!isValidNumber(roi) || !isValidNumber(netPL)) {
+      logWarning('Invalid final calculations', { 
+        recommendationId: rec.id, 
+        roi, 
+        netPL 
+      });
+      return; // Skip this recommendation
+    }
 
     trades.push({
       recommendationId: rec.id,
@@ -226,7 +352,7 @@ export function calculateSimulatedPortfolio(
     });
   });
 
-  // Calculate summary statistics
+  // Calculate summary statistics with division by zero protection
   const wins = trades.filter(t => t.netProfitLoss > 0);
   const losses = trades.filter(t => t.netProfitLoss < 0);
 
@@ -264,7 +390,24 @@ export function calculateSimulatedPortfolio(
 export function calculateAccuracyMetrics(
   recommendations: RecommendationWithOutcome[]
 ): AccuracyMetrics {
-  if (!recommendations || recommendations.length === 0) {
+  // Validate input
+  if (!recommendations || !Array.isArray(recommendations)) {
+    logWarning('Invalid recommendations array provided to calculateAccuracyMetrics', { recommendations });
+    return {
+      totalRecommendations: 0,
+      correctRecommendations: 0,
+      accuracyPercentage: 0,
+      averageConfidence: 0,
+      confidenceAccuracyCorrelation: 0,
+      byConfidence: {
+        high: { total: 0, correct: 0, percentage: 0 },
+        moderate: { total: 0, correct: 0, percentage: 0 },
+        low: { total: 0, correct: 0, percentage: 0 },
+      },
+    };
+  }
+
+  if (recommendations.length === 0) {
     return {
       totalRecommendations: 0,
       correctRecommendations: 0,
@@ -281,7 +424,9 @@ export function calculateAccuracyMetrics(
 
   const total = recommendations.length;
   const correct = recommendations.filter(r => r.wasCorrect).length;
-  const accuracyPercentage = (correct / total) * 100;
+  
+  // Division by zero protection
+  const accuracyPercentage = total > 0 ? (correct / total) * 100 : 0;
 
   // Calculate average confidence (convert confidence levels to numeric values)
   const confidenceValues = recommendations.map(r => {
@@ -289,10 +434,16 @@ export function calculateAccuracyMetrics(
       case 'high': return 3;
       case 'moderate': return 2;
       case 'low': return 1;
-      default: return 2;
+      default: 
+        logWarning('Unknown confidence level', { confidence: r.confidence, recommendationId: r.id });
+        return 2;
     }
   });
-  const avgConfidence = confidenceValues.reduce((sum, val) => sum + val, 0) / total;
+  
+  // Division by zero protection
+  const avgConfidence = total > 0 
+    ? confidenceValues.reduce((sum, val) => sum + val, 0) / total 
+    : 0;
 
   // Calculate accuracy by confidence level
   const byConfidence = {
@@ -307,12 +458,17 @@ export function calculateAccuracyMetrics(
     recommendations.map(r => r.wasCorrect ? 1 : 0)
   );
 
+  // Validate correlation result
+  if (!isValidNumber(correlation)) {
+    logWarning('Invalid correlation calculation result', { correlation });
+  }
+
   return {
     totalRecommendations: total,
     correctRecommendations: correct,
     accuracyPercentage,
     averageConfidence: avgConfidence,
-    confidenceAccuracyCorrelation: correlation,
+    confidenceAccuracyCorrelation: isValidNumber(correlation) ? correlation : 0,
     byConfidence,
   };
 }
@@ -350,7 +506,9 @@ function calculateConfidenceAccuracy(
  * ```
  */
 export function calculateRiskMetrics(returns: number[]): RiskMetrics {
-  if (!returns || returns.length === 0) {
+  // Validate input
+  if (!returns || !Array.isArray(returns)) {
+    logWarning('Invalid returns array provided to calculateRiskMetrics', { returns });
     return {
       sharpeRatio: null,
       maxDrawdown: 0,
@@ -359,27 +517,88 @@ export function calculateRiskMetrics(returns: number[]): RiskMetrics {
     };
   }
 
-  // Calculate average return
-  const avgReturn = returns.reduce((sum, r) => sum + r, 0) / returns.length;
+  if (returns.length === 0) {
+    return {
+      sharpeRatio: null,
+      maxDrawdown: 0,
+      volatility: 0,
+      riskAdjustedReturn: null,
+    };
+  }
 
-  // Calculate volatility (standard deviation)
-  const variance = returns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / returns.length;
+  // Filter out invalid returns
+  const validReturns = returns.filter(r => isValidNumber(r));
+  
+  if (validReturns.length === 0) {
+    logWarning('No valid returns found in array', { originalLength: returns.length });
+    return {
+      sharpeRatio: null,
+      maxDrawdown: 0,
+      volatility: 0,
+      riskAdjustedReturn: null,
+    };
+  }
+
+  if (validReturns.length !== returns.length) {
+    logWarning('Some invalid returns were filtered out', { 
+      original: returns.length, 
+      valid: validReturns.length 
+    });
+  }
+
+  // Calculate average return with division by zero protection
+  const avgReturn = validReturns.length > 0 
+    ? validReturns.reduce((sum, r) => sum + r, 0) / validReturns.length 
+    : 0;
+
+  // Calculate volatility (standard deviation) with division by zero protection
+  const variance = validReturns.length > 0
+    ? validReturns.reduce((sum, r) => sum + Math.pow(r - avgReturn, 2), 0) / validReturns.length
+    : 0;
   const volatility = Math.sqrt(variance);
 
+  // Validate volatility calculation
+  if (!isValidNumber(volatility)) {
+    logWarning('Invalid volatility calculation', { volatility, variance });
+    return {
+      sharpeRatio: null,
+      maxDrawdown: 0,
+      volatility: 0,
+      riskAdjustedReturn: null,
+    };
+  }
+
   // Calculate Sharpe ratio (assuming risk-free rate of 0)
+  // Division by zero protection: return null if volatility is zero
   const sharpeRatio = volatility > 0 ? avgReturn / volatility : null;
 
+  // Validate Sharpe ratio
+  if (sharpeRatio !== null && !isValidNumber(sharpeRatio)) {
+    logWarning('Invalid Sharpe ratio calculation', { sharpeRatio, avgReturn, volatility });
+  }
+
   // Calculate maximum drawdown
-  const maxDrawdown = calculateMaxDrawdown(returns);
+  const maxDrawdown = calculateMaxDrawdown(validReturns);
+
+  // Validate max drawdown
+  if (!isValidNumber(maxDrawdown)) {
+    logWarning('Invalid max drawdown calculation', { maxDrawdown });
+  }
 
   // Calculate risk-adjusted return (return per unit of volatility)
+  // Division by zero protection: return null if volatility is zero
   const riskAdjustedReturn = volatility > 0 ? avgReturn / volatility : null;
 
+  // Validate risk-adjusted return
+  if (riskAdjustedReturn !== null && !isValidNumber(riskAdjustedReturn)) {
+    logWarning('Invalid risk-adjusted return calculation', { riskAdjustedReturn });
+  }
+
   return {
-    sharpeRatio,
-    maxDrawdown,
-    volatility,
-    riskAdjustedReturn,
+    sharpeRatio: sharpeRatio !== null && isValidNumber(sharpeRatio) ? sharpeRatio : null,
+    maxDrawdown: isValidNumber(maxDrawdown) ? maxDrawdown : 0,
+    volatility: isValidNumber(volatility) ? volatility : 0,
+    riskAdjustedReturn: riskAdjustedReturn !== null && isValidNumber(riskAdjustedReturn) ? riskAdjustedReturn : null,
   };
 }
 
@@ -428,7 +647,18 @@ function calculateMaxDrawdown(returns: number[]): number {
 export function calculateCalibrationMetrics(
   recommendations: RecommendationWithOutcome[]
 ): CalibrationMetrics {
-  if (!recommendations || recommendations.length === 0) {
+  // Validate input
+  if (!recommendations || !Array.isArray(recommendations)) {
+    logWarning('Invalid recommendations array provided to calculateCalibrationMetrics', { recommendations });
+    return {
+      calibrationError: 0,
+      avgConfidenceCorrect: 0,
+      avgConfidenceIncorrect: 0,
+      confidenceAccuracyCorrelation: 0,
+    };
+  }
+
+  if (recommendations.length === 0) {
     return {
       calibrationError: 0,
       avgConfidenceCorrect: 0,
@@ -438,18 +668,40 @@ export function calculateCalibrationMetrics(
   }
 
   // Calculate calibration error (mean absolute difference between predicted probability and outcome)
-  const calibrationErrors = recommendations.map(rec => {
-    const predicted = rec.fairProbability;
-    const actual = rec.wasCorrect ? 1 : 0;
-    return Math.abs(predicted - actual);
-  });
-  const calibrationError = calibrationErrors.reduce((sum, err) => sum + err, 0) / calibrationErrors.length;
+  const calibrationErrors = recommendations
+    .filter(rec => isValidNumber(rec.fairProbability))
+    .map(rec => {
+      const predicted = rec.fairProbability;
+      const actual = rec.wasCorrect ? 1 : 0;
+      return Math.abs(predicted - actual);
+    });
+
+  if (calibrationErrors.length === 0) {
+    logWarning('No valid fair probabilities found for calibration calculation');
+    return {
+      calibrationError: 0,
+      avgConfidenceCorrect: 0,
+      avgConfidenceIncorrect: 0,
+      confidenceAccuracyCorrelation: 0,
+    };
+  }
+
+  // Division by zero protection
+  const calibrationError = calibrationErrors.length > 0
+    ? calibrationErrors.reduce((sum, err) => sum + err, 0) / calibrationErrors.length
+    : 0;
+
+  // Validate calibration error
+  if (!isValidNumber(calibrationError)) {
+    logWarning('Invalid calibration error calculation', { calibrationError });
+  }
 
   // Segment by correctness
   const correct = recommendations.filter(r => r.wasCorrect);
   const incorrect = recommendations.filter(r => !r.wasCorrect);
 
   // Calculate average confidence for each segment (using numeric values)
+  // Division by zero protection
   const avgConfidenceCorrect = correct.length > 0
     ? correct.reduce((sum, r) => sum + confidenceToNumeric(r.confidence), 0) / correct.length
     : 0;
@@ -463,11 +715,16 @@ export function calculateCalibrationMetrics(
   const accuracyValues = recommendations.map(r => r.wasCorrect ? 1 : 0);
   const correlation = calculateCorrelation(confidenceValues, accuracyValues);
 
+  // Validate correlation
+  if (!isValidNumber(correlation)) {
+    logWarning('Invalid correlation in calibration metrics', { correlation });
+  }
+
   return {
-    calibrationError,
-    avgConfidenceCorrect,
-    avgConfidenceIncorrect,
-    confidenceAccuracyCorrelation: correlation,
+    calibrationError: isValidNumber(calibrationError) ? calibrationError : 0,
+    avgConfidenceCorrect: isValidNumber(avgConfidenceCorrect) ? avgConfidenceCorrect : 0,
+    avgConfidenceIncorrect: isValidNumber(avgConfidenceIncorrect) ? avgConfidenceIncorrect : 0,
+    confidenceAccuracyCorrelation: isValidNumber(correlation) ? correlation : 0,
   };
 }
 
@@ -509,6 +766,33 @@ export function calculateBaselineComparison(
   firstRecommendationPrice: number,
   finalPrice: number
 ): BaselineComparison {
+  // Validate inputs
+  if (!recommendations || !Array.isArray(recommendations)) {
+    logWarning('Invalid recommendations array provided to calculateBaselineComparison', { recommendations });
+    return createEmptyBaselineComparison();
+  }
+
+  if (!isValidNumber(investmentAmount) || investmentAmount <= 0) {
+    logWarning('Invalid investment amount', { investmentAmount });
+    return createEmptyBaselineComparison();
+  }
+
+  if (!isValidPrice(firstRecommendationPrice)) {
+    logWarning('Invalid first recommendation price', { firstRecommendationPrice });
+    return createEmptyBaselineComparison();
+  }
+
+  if (!isValidPrice(finalPrice)) {
+    logWarning('Invalid final price', { finalPrice });
+    return createEmptyBaselineComparison();
+  }
+
+  // Division by zero check for first recommendation price
+  if (firstRecommendationPrice === 0) {
+    logWarning('First recommendation price is zero, cannot calculate baseline comparison');
+    return createEmptyBaselineComparison();
+  }
+
   // Calculate AI performance
   const aiPortfolio = calculateSimulatedPortfolio(recommendations, investmentAmount);
   const aiPerformance = {
@@ -516,16 +800,21 @@ export function calculateBaselineComparison(
     profitLoss: aiPortfolio.summary.totalPL,
   };
 
-  // Calculate buy-and-hold baseline
+  // Calculate buy-and-hold baseline (safe after division by zero check)
   const buyAndHoldShares = investmentAmount / firstRecommendationPrice;
   const buyAndHoldGrossPL = buyAndHoldShares * (finalPrice - firstRecommendationPrice);
   const buyAndHoldFees = buyAndHoldGrossPL > 0 ? buyAndHoldGrossPL * POLYMARKET_FEE : 0;
   const buyAndHoldNetPL = buyAndHoldGrossPL - buyAndHoldFees;
   const buyAndHoldROI = (buyAndHoldNetPL / investmentAmount) * 100;
 
+  // Validate buy-and-hold calculations
+  if (!isValidNumber(buyAndHoldROI) || !isValidNumber(buyAndHoldNetPL)) {
+    logWarning('Invalid buy-and-hold calculations', { buyAndHoldROI, buyAndHoldNetPL });
+  }
+
   const buyAndHold = {
-    roi: buyAndHoldROI,
-    profitLoss: buyAndHoldNetPL,
+    roi: isValidNumber(buyAndHoldROI) ? buyAndHoldROI : 0,
+    profitLoss: isValidNumber(buyAndHoldNetPL) ? buyAndHoldNetPL : 0,
   };
 
   // Calculate random strategy baseline (Monte Carlo simulation)
@@ -537,20 +826,32 @@ export function calculateBaselineComparison(
     const randomEntry = Math.random();
     const randomExit = Math.random();
     
+    // Division by zero check
+    if (randomEntry === 0) {
+      continue; // Skip this iteration
+    }
+    
     const shares = investmentAmount / randomEntry;
     const grossPL = shares * (randomExit - randomEntry);
     const fees = grossPL > 0 ? grossPL * POLYMARKET_FEE : 0;
     const netPL = grossPL - fees;
     const roi = (netPL / investmentAmount) * 100;
     
-    randomResults.push(roi);
+    // Validate calculation
+    if (isValidNumber(roi)) {
+      randomResults.push(roi);
+    }
   }
 
-  const randomAvgROI = randomResults.reduce((sum, roi) => sum + roi, 0) / randomIterations;
+  // Division by zero protection for random strategy average
+  const randomAvgROI = randomResults.length > 0
+    ? randomResults.reduce((sum, roi) => sum + roi, 0) / randomResults.length
+    : 0;
+
   const randomStrategy = {
-    roi: randomAvgROI,
-    profitLoss: (randomAvgROI / 100) * investmentAmount,
-    iterations: randomIterations,
+    roi: isValidNumber(randomAvgROI) ? randomAvgROI : 0,
+    profitLoss: isValidNumber(randomAvgROI) ? (randomAvgROI / 100) * investmentAmount : 0,
+    iterations: randomResults.length,
   };
 
   // Calculate statistical significance (t-test)
@@ -566,10 +867,35 @@ export function calculateBaselineComparison(
 }
 
 /**
+ * Helper function to create empty baseline comparison result
+ */
+function createEmptyBaselineComparison(): BaselineComparison {
+  return {
+    buyAndHold: { roi: 0, profitLoss: 0 },
+    randomStrategy: { roi: 0, profitLoss: 0, iterations: 0 },
+    aiPerformance: { roi: 0, profitLoss: 0 },
+    statisticalSignificance: { pValue: 1, isSignificant: false },
+  };
+}
+
+/**
  * Helper function to calculate Pearson correlation coefficient
  */
 function calculateCorrelation(x: number[], y: number[]): number {
-  if (x.length !== y.length || x.length === 0) return 0;
+  // Validate inputs
+  if (!x || !y || !Array.isArray(x) || !Array.isArray(y)) {
+    logWarning('Invalid arrays provided to calculateCorrelation');
+    return 0;
+  }
+
+  if (x.length !== y.length) {
+    logWarning('Array length mismatch in calculateCorrelation', { xLength: x.length, yLength: y.length });
+    return 0;
+  }
+
+  if (x.length === 0) {
+    return 0;
+  }
 
   const n = x.length;
   const sumX = x.reduce((sum, val) => sum + val, 0);
@@ -581,9 +907,21 @@ function calculateCorrelation(x: number[], y: number[]): number {
   const numerator = n * sumXY - sumX * sumY;
   const denominator = Math.sqrt((n * sumX2 - sumX * sumX) * (n * sumY2 - sumY * sumY));
 
-  if (denominator === 0) return 0;
+  // Division by zero protection
+  if (denominator === 0) {
+    logWarning('Zero denominator in correlation calculation (no variance in data)');
+    return 0;
+  }
 
-  return numerator / denominator;
+  const correlation = numerator / denominator;
+
+  // Validate result
+  if (!isValidNumber(correlation)) {
+    logWarning('Invalid correlation result', { correlation, numerator, denominator });
+    return 0;
+  }
+
+  return correlation;
 }
 
 /**
@@ -593,30 +931,90 @@ function calculateTTest(
   sample1: number[],
   sample2: number[]
 ): { pValue: number; isSignificant: boolean } {
-  if (sample1.length === 0 || sample2.length === 0) {
+  // Validate inputs
+  if (!sample1 || !sample2 || !Array.isArray(sample1) || !Array.isArray(sample2)) {
+    logWarning('Invalid samples provided to calculateTTest');
     return { pValue: 1, isSignificant: false };
   }
 
-  const mean1 = sample1.reduce((sum, val) => sum + val, 0) / sample1.length;
-  const mean2 = sample2.reduce((sum, val) => sum + val, 0) / sample2.length;
+  if (sample1.length === 0 || sample2.length === 0) {
+    logWarning('Empty sample arrays in t-test', { sample1Length: sample1.length, sample2Length: sample2.length });
+    return { pValue: 1, isSignificant: false };
+  }
 
-  const variance1 = sample1.reduce((sum, val) => sum + Math.pow(val - mean1, 2), 0) / (sample1.length - 1);
-  const variance2 = sample2.reduce((sum, val) => sum + Math.pow(val - mean2, 2), 0) / (sample2.length - 1);
+  // Filter out invalid numbers
+  const validSample1 = sample1.filter(isValidNumber);
+  const validSample2 = sample2.filter(isValidNumber);
 
-  const pooledVariance = ((sample1.length - 1) * variance1 + (sample2.length - 1) * variance2) / 
-                         (sample1.length + sample2.length - 2);
+  if (validSample1.length === 0 || validSample2.length === 0) {
+    logWarning('No valid numbers in samples after filtering');
+    return { pValue: 1, isSignificant: false };
+  }
 
-  const standardError = Math.sqrt(pooledVariance * (1 / sample1.length + 1 / sample2.length));
+  // Division by zero protection for means
+  const mean1 = validSample1.length > 0
+    ? validSample1.reduce((sum, val) => sum + val, 0) / validSample1.length
+    : 0;
+  const mean2 = validSample2.length > 0
+    ? validSample2.reduce((sum, val) => sum + val, 0) / validSample2.length
+    : 0;
 
+  // Need at least 2 samples for variance calculation
+  if (validSample1.length < 2 || validSample2.length < 2) {
+    logWarning('Insufficient samples for t-test (need at least 2 per group)');
+    return { pValue: 1, isSignificant: false };
+  }
+
+  // Division by zero protection for variance
+  const variance1 = validSample1.reduce((sum, val) => sum + Math.pow(val - mean1, 2), 0) / (validSample1.length - 1);
+  const variance2 = validSample2.reduce((sum, val) => sum + Math.pow(val - mean2, 2), 0) / (validSample2.length - 1);
+
+  // Validate variances
+  if (!isValidNumber(variance1) || !isValidNumber(variance2)) {
+    logWarning('Invalid variance calculations', { variance1, variance2 });
+    return { pValue: 1, isSignificant: false };
+  }
+
+  const pooledVariance = ((validSample1.length - 1) * variance1 + (validSample2.length - 1) * variance2) / 
+                         (validSample1.length + validSample2.length - 2);
+
+  // Validate pooled variance
+  if (!isValidNumber(pooledVariance) || pooledVariance < 0) {
+    logWarning('Invalid pooled variance', { pooledVariance });
+    return { pValue: 1, isSignificant: false };
+  }
+
+  const standardError = Math.sqrt(pooledVariance * (1 / validSample1.length + 1 / validSample2.length));
+
+  // Division by zero protection for standard error
   if (standardError === 0) {
+    logWarning('Zero standard error in t-test (no variance)');
+    return { pValue: 1, isSignificant: false };
+  }
+
+  // Validate standard error
+  if (!isValidNumber(standardError)) {
+    logWarning('Invalid standard error calculation', { standardError });
     return { pValue: 1, isSignificant: false };
   }
 
   const tStatistic = (mean1 - mean2) / standardError;
 
+  // Validate t-statistic
+  if (!isValidNumber(tStatistic)) {
+    logWarning('Invalid t-statistic calculation', { tStatistic, mean1, mean2, standardError });
+    return { pValue: 1, isSignificant: false };
+  }
+
   // Simplified p-value approximation (for demonstration)
   // In production, use a proper statistical library
   const pValue = 2 * (1 - normalCDF(Math.abs(tStatistic)));
+
+  // Validate p-value
+  if (!isValidNumber(pValue) || pValue < 0 || pValue > 1) {
+    logWarning('Invalid p-value calculation', { pValue, tStatistic });
+    return { pValue: 1, isSignificant: false };
+  }
 
   return {
     pValue,

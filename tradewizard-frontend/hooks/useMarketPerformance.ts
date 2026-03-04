@@ -69,6 +69,7 @@ export interface MarketPerformanceDetailResponse {
   recommendations: RecommendationWithOutcome[];
   metrics: PerformanceMetrics;
   agentSignals: AgentSignal[];
+  priceHistory?: Array<{ timestamp: string; price: number }>;
 }
 
 export interface UseMarketPerformanceOptions {

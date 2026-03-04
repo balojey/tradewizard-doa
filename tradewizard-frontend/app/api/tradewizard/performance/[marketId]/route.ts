@@ -19,12 +19,61 @@ export async function GET(
       );
     }
 
-    // Fetch recommendations for this market from the performance view
-    const { data: recommendations, error: recError } = await supabase
-      .from("v_closed_markets_performance")
-      .select("*")
-      .eq("market_id", marketId)
-      .order("recommendation_created_at", { ascending: true });
+    // Fetch recommendations for this market
+    // For active markets, query from base tables; for closed markets, use the performance view
+    const { data: market, error: marketError } = await supabase
+      .from("markets")
+      .select("id, condition_id, question, event_type, status, resolved_outcome")
+      .eq("id", marketId)
+      .single();
+
+    if (marketError || !market) {
+      console.error("Error fetching market:", marketError);
+      return NextResponse.json(
+        { error: "Market not found" },
+        { status: 404 }
+      );
+    }
+
+    const isResolved = market.status === 'resolved';
+
+    let recommendations;
+    let recError;
+
+    if (isResolved) {
+      // For resolved markets, use the performance view with outcome data
+      const result = await supabase
+        .from("v_closed_markets_performance")
+        .select("*")
+        .eq("market_id", marketId)
+        .order("recommendation_created_at", { ascending: true });
+      
+      recommendations = result.data;
+      recError = result.error;
+    } else {
+      // For active markets, query recommendations directly
+      const result = await supabase
+        .from("recommendations")
+        .select(`
+          id,
+          market_id,
+          direction,
+          confidence,
+          fair_probability,
+          market_edge,
+          expected_value,
+          entry_zone_min,
+          entry_zone_max,
+          explanation,
+          created_at,
+          market_probability_at_recommendation
+        `)
+        .eq("market_id", marketId)
+        .order("created_at", { ascending: true });
+      
+      recommendations = result.data;
+      recError = result.error;
+    }
 
     if (recError) {
       console.error("Error fetching market recommendations:", recError);
@@ -41,18 +90,20 @@ export async function GET(
       );
     }
 
-    // Extract market info from first recommendation
+    // Extract market info
     const marketInfo = {
-      id: recommendations[0].market_id,
-      conditionId: recommendations[0].condition_id,
-      question: recommendations[0].question,
+      id: market.id,
+      conditionId: market.condition_id,
+      question: market.question,
       description: "", // Not in view, would need separate query if needed
-      eventType: recommendations[0].event_type,
-      resolvedOutcome: recommendations[0].resolved_outcome,
-      resolutionDate: recommendations[0].resolution_date,
-      slug: recommendations[0].question && recommendations[0].market_id
-        ? generateMarketSlug(recommendations[0].question, recommendations[0].market_id)
-        : `market-${recommendations[0].market_id || marketId}`,
+      eventType: market.event_type,
+      resolvedOutcome: market.resolved_outcome || "Pending",
+      resolutionDate: isResolved && (recommendations as any)[0]?.resolution_date 
+        ? (recommendations as any)[0].resolution_date 
+        : new Date().toISOString(),
+      slug: market.question && market.id
+        ? generateMarketSlug(market.question, market.id)
+        : `market-${market.id || marketId}`,
     };
 
     // Fetch agent signals for this market (if available)
@@ -68,28 +119,55 @@ export async function GET(
     }
 
     // Transform recommendations to include outcome data
-    const recommendationsWithOutcome = recommendations.map(rec => ({
-      id: rec.recommendation_id,
-      marketId: rec.market_id,
-      direction: rec.direction,
-      confidence: rec.confidence,
-      fairProbability: rec.fair_probability,
-      marketEdge: rec.market_edge,
-      expectedValue: rec.expected_value,
-      entryZoneMin: rec.entry_zone_min,
-      entryZoneMax: rec.entry_zone_max,
-      explanation: rec.explanation,
-      createdAt: rec.recommendation_created_at,
-      actualOutcome: rec.resolved_outcome,
-      wasCorrect: rec.recommendation_was_correct,
-      roiRealized: rec.roi_realized,
-      edgeCaptured: rec.edge_captured,
-      marketPriceAtRecommendation: rec.market_probability_at_recommendation,
-      resolutionDate: rec.resolution_date,
-      entryPrice: rec.market_probability_at_recommendation,
-      // Exit price would be final resolution price or intermediate price if available
-      exitPrice: rec.resolved_outcome === "YES" ? 1.0 : 0.0,
-    }));
+    const recommendationsWithOutcome = recommendations.map((rec: any) => {
+      if (isResolved) {
+        // Data from v_closed_markets_performance view
+        return {
+          id: rec.recommendation_id,
+          marketId: rec.market_id,
+          direction: rec.direction,
+          confidence: rec.confidence,
+          fairProbability: rec.fair_probability,
+          marketEdge: rec.market_edge,
+          expectedValue: rec.expected_value,
+          entryZoneMin: rec.entry_zone_min,
+          entryZoneMax: rec.entry_zone_max,
+          explanation: rec.explanation,
+          createdAt: rec.recommendation_created_at,
+          actualOutcome: rec.resolved_outcome,
+          wasCorrect: rec.recommendation_was_correct,
+          roiRealized: rec.roi_realized || 0,
+          edgeCaptured: rec.edge_captured || 0,
+          marketPriceAtRecommendation: rec.market_probability_at_recommendation,
+          resolutionDate: rec.resolution_date,
+          entryPrice: rec.market_probability_at_recommendation,
+          exitPrice: rec.resolved_outcome === "YES" ? 1.0 : 0.0,
+        };
+      } else {
+        // Data from recommendations table (active market)
+        return {
+          id: rec.id,
+          marketId: rec.market_id,
+          direction: rec.direction,
+          confidence: rec.confidence,
+          fairProbability: rec.fair_probability,
+          marketEdge: rec.market_edge,
+          expectedValue: rec.expected_value,
+          entryZoneMin: rec.entry_zone_min,
+          entryZoneMax: rec.entry_zone_max,
+          explanation: rec.explanation,
+          createdAt: rec.created_at,
+          actualOutcome: "Pending",
+          wasCorrect: false, // Unknown for active markets
+          roiRealized: 0, // Cannot calculate for active markets
+          edgeCaptured: 0,
+          marketPriceAtRecommendation: rec.market_probability_at_recommendation,
+          resolutionDate: new Date().toISOString(),
+          entryPrice: rec.market_probability_at_recommendation,
+          exitPrice: undefined, // No exit price for active markets
+        };
+      }
+    });
 
     // Calculate performance metrics
     const metrics = calculateMarketMetrics(recommendationsWithOutcome);

@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "../styles/mobile-optimizations.css";
+@import "../styles/mobile-text-readability.css";
 
 :root {
   /* Core Base Colors */
@@ -102,4 +103,23 @@ body::after {
 
 .no-scrollbar::-webkit-scrollbar { 
   display: none;  /* Safari and Chrome */
+}
+
+/* Screen Reader Only - Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Focus visible for keyboard navigation */
+.focus-visible:focus {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
 }
