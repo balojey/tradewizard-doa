@@ -280,10 +280,12 @@ async def web_research_agent_node(
         llm = create_llm_instance(config.llm, rotation_manager=rotation_manager)
         
         # Step 9: Create ReAct agent with tools and system prompt (Requirement 4.1)
-        # Bind the system prompt to the LLM
+        # Bind the system prompt to the LLM before creating the agent
         system_prompt = get_web_research_agent_system_prompt()
+        llm_with_system = llm.bind(system=system_prompt)
+        
         agent = create_react_agent(
-            model=llm,
+            model=llm_with_system,
             tools=tools,
         )
         
@@ -291,7 +293,6 @@ async def web_research_agent_node(
         mbd = state['mbd']
         agent_input = {
             'messages': [
-                SystemMessage(content=system_prompt),
                 {
                     'role': 'user',
                     'content': f"""Analyze this prediction market and gather comprehensive web research:
