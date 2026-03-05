@@ -517,7 +517,7 @@ export default function AgentInteractionNetwork({
                     </div>
                   </div>
 
-                  <div className="p-5 space-y-5 overflow-y-auto max-h-[400px]">
+                  <div className="p-5 space-y-5 overflow-y-auto max-h-[400px] scrollbar-custom">
                     {/* Interactions */}
                     {connections.filter(c => c.from === selectedNode.id || c.to === selectedNode.id).length > 0 && (
                       <div>
