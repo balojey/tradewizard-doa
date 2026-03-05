@@ -24,11 +24,17 @@ export async function GET(request: NextRequest) {
   const includeSlug = searchParams.get("includeSlug") === "true";
 
   try {
+    // Ensure recommendation outcomes are calculated for all resolved markets
+    // This handles cases where markets were resolved but outcomes weren't calculated
+    const { error: updateError } = await supabase.rpc("update_recommendation_outcomes");
+    if (updateError) {
+      console.warn("Warning: Failed to update recommendation outcomes:", updateError);
+      // Don't fail the request, just log the warning
+    }
     // First, get total count for pagination
     let countQuery = supabase
       .from("v_closed_markets_performance")
-      .select("*", { count: "exact", head: true })
-      .not("recommendation_was_correct", "is", null);
+      .select("*", { count: "exact", head: true });
 
     // Apply same filters to count query
     if (timeframe !== "all") {
@@ -53,10 +59,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Build the base query for closed markets with performance data
+    // Note: We don't filter by recommendation_was_correct to show all resolved markets
+    // even if outcome calculation hasn't run yet
     let query = supabase
       .from("v_closed_markets_performance")
       .select("*")
-      .not("recommendation_was_correct", "is", null)
       .order("resolution_date", { ascending: false });
 
     // Apply timeframe filter

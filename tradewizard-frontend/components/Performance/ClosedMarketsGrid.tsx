@@ -110,7 +110,7 @@ export default function ClosedMarketsGrid({
       <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {markets.map((market) => (
           <ClosedMarketCard
-            key={market.market_id}
+            key={`${market.market_id}-${market.recommendation_id}`}
             market={market}
             onMarketClick={onMarketClick}
           />
@@ -200,7 +200,8 @@ function ClosedMarketCard({ market, onMarketClick }: ClosedMarketCardProps) {
   const queryClient = useQueryClient();
   const hasRecommendations = !!market.recommendation_id;
   const isWin = market.recommendation_was_correct;
-  const marketSlug = market.market_id; // Will be enhanced with actual slug in API
+  // Use slug if available, otherwise fall back to market_id
+  const marketSlug = market.slug || market.market_id;
 
   const handleClick = () => {
     if (onMarketClick) {
@@ -366,7 +367,7 @@ function ClosedMarketCard({ market, onMarketClick }: ClosedMarketCardProps) {
               {/* ROI Display */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/10">
                 <div className="flex items-center gap-2">
-                  {market.roi_realized >= 0 ? (
+                  {market.roi_realized != null && market.roi_realized >= 0 ? (
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
                   ) : (
                     <TrendingDown className="w-4 h-4 text-red-400" />
@@ -377,13 +378,19 @@ function ClosedMarketCard({ market, onMarketClick }: ClosedMarketCardProps) {
                 </div>
                 <span
                   className={`text-lg font-bold font-mono ${
-                    market.roi_realized >= 0
+                    market.roi_realized != null && market.roi_realized >= 0
                       ? "text-emerald-400"
                       : "text-red-400"
                   }`}
                 >
-                  {market.roi_realized >= 0 ? "+" : ""}
-                  {market.roi_realized?.toFixed(1) || 0}%
+                  {market.roi_realized != null ? (
+                    <>
+                      {market.roi_realized >= 0 ? "+" : ""}
+                      {market.roi_realized.toFixed(1)}%
+                    </>
+                  ) : (
+                    "N/A"
+                  )}
                 </span>
               </div>
             </div>

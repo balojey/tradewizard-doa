@@ -25,6 +25,7 @@ export interface ClosedMarketPerformance {
   days_to_resolution: number;
   total_agents: number;
   agents_in_agreement: number;
+  slug?: string; // Optional slug for navigation, added by API when includeSlug=true
 }
 
 export interface PerformanceSummary {
