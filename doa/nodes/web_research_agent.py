@@ -25,11 +25,11 @@ from typing import Any, Dict, List, Optional
 
 from langgraph.prebuilt import create_react_agent
 
-from ..config import Config
-from ..models.state import GraphState
-from ..models.types import AgentSignal
-from ..tools.serper_client import SerperClient, SerperConfig
-from ..tools.serper_tools import (
+from config import EngineConfig
+from models.state import GraphState
+from models.types import AgentSignal
+from tools.serper_client import SerperClient, SerperConfig
+from tools.serper_tools import (
     ToolContext,
     create_search_web_tool,
     create_scrape_webpage_tool,
@@ -142,7 +142,7 @@ Be thorough and document your research process."""
 
 async def web_research_agent_node(
     state: GraphState,
-    config: Config
+    config: EngineConfig
 ) -> Dict[str, Any]:
     """
     Web Research Agent node for the workflow
@@ -176,11 +176,12 @@ async def web_research_agent_node(
                 'agent_errors': [{
                     'type': 'EXECUTION_FAILED',
                     'agent_name': agent_name,
-                    'error': error_message,
+                    'message': error_message,
                 }],
                 'audit_log': [{
                     'stage': f'agent_{agent_name}',
-                    'timestamp': time.time(),
+                    'timestamp': int(time.time()),
+                    'status': 'error',
                     'data': {
                         'agent_name': agent_name,
                         'success': False,
@@ -205,6 +206,7 @@ async def web_research_agent_node(
             # Return low-confidence neutral signal (Requirement 8.3)
             signal = AgentSignal(
                 agent_name=agent_name,
+                timestamp=int(time.time()),
                 confidence=0.1,
                 direction='NEUTRAL',
                 fair_probability=0.5,
@@ -227,7 +229,8 @@ async def web_research_agent_node(
                 'agent_signals': [signal.model_dump()],
                 'audit_log': [{
                     'stage': f'agent_{agent_name}',
-                    'timestamp': time.time(),
+                    'timestamp': int(time.time()),
+                    'status': 'success',
                     'data': {
                         'agent_name': agent_name,
                         'success': True,
@@ -260,43 +263,62 @@ async def web_research_agent_node(
             create_scrape_webpage_tool(tool_context),
         ]
         
-        # Step 8: Create LLM instance (Requirement 4.2)
+        # Step 8: Create LLM instance with rotation support (Requirement 4.2)
         # Import here to avoid circular dependency
-        from ..llms import create_llm_instance
-        llm = create_llm_instance(config, 'google', ['openai', 'anthropic'])
+        from utils.llm_factory import create_llm_instance
+        from utils.llm_rotation_manager import LLMRotationManager
+        from langchain_core.messages import SystemMessage
+        
+        # Create rotation manager if multiple models configured
+        rotation_manager = None
+        if len(config.llm.model_names) > 1:
+            # Multiple models configured - create rotation manager
+            model_names_str = ",".join(config.llm.model_names)
+            rotation_manager = LLMRotationManager(model_names_str)
+            logger.info(f"[{agent_name}] Created rotation manager with {len(config.llm.model_names)} models")
+        
+        llm = create_llm_instance(config.llm, rotation_manager=rotation_manager)
         
         # Step 9: Create ReAct agent with tools and system prompt (Requirement 4.1)
+        # Bind the system prompt to the LLM
+        system_prompt = get_web_research_agent_system_prompt()
         agent = create_react_agent(
-            llm=llm,
+            model=llm,
             tools=tools,
-            state_modifier=get_web_research_agent_system_prompt(),
         )
         
         # Step 10: Prepare agent input with market data (Requirement 4.1)
         mbd = state['mbd']
         agent_input = {
-            'messages': [{
-                'role': 'user',
-                'content': f"""Analyze this prediction market and gather comprehensive web research:
+            'messages': [
+                SystemMessage(content=system_prompt),
+                {
+                    'role': 'user',
+                    'content': f"""Analyze this prediction market and gather comprehensive web research:
 
-Market Question: {mbd.get('question', 'N/A')}
-Market Description: {mbd.get('description', 'N/A')}
-Market Category: {mbd.get('category', 'N/A')}
-Market Tags: {', '.join(mbd.get('tags', [])) if mbd.get('tags') else 'N/A'}
+Market Question: {mbd.question if hasattr(mbd, 'question') else 'N/A'}
+Market Description: {mbd.description if hasattr(mbd, 'description') else 'N/A'}
+Market Category: {mbd.category if hasattr(mbd, 'category') else 'N/A'}
+Market Tags: {', '.join(mbd.tags) if hasattr(mbd, 'tags') and mbd.tags else 'N/A'}
 
 Please search the web and scrape relevant sources to provide comprehensive context about this market.""",
-            }],
+                }
+            ],
         }
         
         # Step 11: Execute agent with timeout and tool limits (Requirement 4.4, 5.12, 8.2)
         max_tool_calls = config.web_research.max_tool_calls if config.web_research else 8
         timeout = config.web_research.timeout if config.web_research else 60
         
+        # Set recursion limit high enough for ReAct agent reasoning cycles
+        # Each tool call can involve multiple reasoning steps (thought -> action -> observation)
+        recursion_limit = max_tool_calls * 5 + 20
+        
         try:
             agent_result = await asyncio.wait_for(
                 agent.ainvoke(
                     agent_input,
-                    config={'recursion_limit': max_tool_calls + 5}  # Allow for reasoning steps
+                    config={'recursion_limit': recursion_limit}
                 ),
                 timeout=timeout
             )
@@ -310,11 +332,17 @@ Please search the web and scrape relevant sources to provide comprehensive conte
         # Step 13: Parse agent output as signal (Requirement 5.12)
         try:
             signal_data = json.loads(agent_output)
+            # Add required timestamp field if missing
+            if 'timestamp' not in signal_data:
+                signal_data['timestamp'] = int(time.time())
+            if 'agent_name' not in signal_data:
+                signal_data['agent_name'] = agent_name
             signal = AgentSignal(**signal_data)
         except (json.JSONDecodeError, Exception):
             # If parsing fails, create signal from text output
             signal = AgentSignal(
                 agent_name=agent_name,
+                timestamp=int(time.time()),
                 confidence=0.7,
                 direction='NEUTRAL',
                 fair_probability=0.5,
@@ -339,7 +367,8 @@ Please search the web and scrape relevant sources to provide comprehensive conte
             'agent_signals': [signal.model_dump()],
             'audit_log': [{
                 'stage': f'agent_{agent_name}',
-                'timestamp': time.time(),
+                'timestamp': int(time.time()),
+                'status': 'success',
                 'data': {
                     'agent_name': agent_name,
                     'success': True,
@@ -360,11 +389,12 @@ Please search the web and scrape relevant sources to provide comprehensive conte
             'agent_errors': [{
                 'type': 'EXECUTION_FAILED',
                 'agent_name': agent_name,
-                'error': str(error),
+                'message': str(error),
             }],
             'audit_log': [{
                 'stage': f'agent_{agent_name}',
-                'timestamp': time.time(),
+                'timestamp': int(time.time()),
+                'status': 'error',
                 'data': {
                     'agent_name': agent_name,
                     'success': False,

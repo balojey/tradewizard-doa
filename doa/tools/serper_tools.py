@@ -418,6 +418,7 @@ Example usage:
 - Background: { query: "candidate biography policy positions" }
 - Breaking news: { query: "Federal Reserve announcement", time_range: "hour" }""",
         func=tool_func,
+        args_schema=SearchWebInput,
         coroutine=tool_func,
     )
 
@@ -471,5 +472,6 @@ Example usage:
 
 Note: Only scrape URLs from search results or known authoritative sources.""",
         func=tool_func,
+        args_schema=ScrapeWebpageInput,
         coroutine=tool_func,
     )

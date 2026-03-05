@@ -46,7 +46,7 @@ class SerperSearchResponse(BaseModel):
 
 class SerperScrapeResponse(BaseModel):
     """Response from Serper scrape API."""
-    url: str
+    url: Optional[str] = None
     title: Optional[str] = None
     text: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
@@ -439,6 +439,9 @@ class SerperClient:
         
         # Parse response
         try:
+            # Add url to response if missing (API doesn't always return it)
+            if 'url' not in response_data:
+                response_data['url'] = params.url
             return SerperScrapeResponse(**response_data)
         except Exception as e:
             raise ValueError(f"Failed to parse Serper scrape response: {str(e)}") from e

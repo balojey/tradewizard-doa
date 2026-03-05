@@ -236,6 +236,8 @@ class SerperConfig:
     search_url: str = "https://google.serper.dev/search"
     scrape_url: str = "https://scrape.serper.dev"
     timeout: int = 30
+    retry_attempts: int = 3
+    retry_delay: float = 1.0
     
     def validate(self) -> List[str]:
         """Validate Serper configuration."""
@@ -252,6 +254,12 @@ class SerperConfig:
         
         if self.timeout <= 0:
             errors.append("SERPER_TIMEOUT must be positive")
+        
+        if self.retry_attempts < 0:
+            errors.append("SERPER_RETRY_ATTEMPTS must be non-negative")
+        
+        if self.retry_delay < 0:
+            errors.append("SERPER_RETRY_DELAY must be non-negative")
         
         return errors
 

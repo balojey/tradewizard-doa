@@ -291,9 +291,12 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     
     # Web Research Agent node (conditional)
     if config.web_research.enabled:
+        async def web_research_wrapper(state):
+            return await web_research_agent_node(state, config)
+        
         workflow.add_node(
             "web_research",
-            lambda state: web_research_agent_node(state, config)
+            web_research_wrapper
         )
     
     # Keyword extraction node
