@@ -196,8 +196,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
   - Test with real Serper API key (if available)
   - Ask the user if questions arise
 
-- [ ] 6. Python: Port Serper API Client with multi-key rotation
-  - [ ] 6.1 Create SerperClient class with KeyState management
+- [x] 6. Python: Port Serper API Client with multi-key rotation
+  - [x] 6.1 Create SerperClient class with KeyState management
     - Create `doa/tools/serper_client.py`
     - Implement KeyState dataclass (key, key_id, is_rate_limited, rate_limit_expiry, total_requests, last_used)
     - Implement SerperConfig, SerperSearchParams, SerperScrapeParams dataclasses
@@ -205,7 +205,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Initialize SerperClient constructor with multi-key parsing (comma-separated)
     - _Requirements: 2.1, 2.5, 7.8, 11.1_
   
-  - [ ] 6.2 Implement key rotation methods following NewsData pattern
+  - [x] 6.2 Implement key rotation methods following NewsData pattern
     - Implement _get_key_id() method (first 8 characters)
     - Implement _is_rate_limit_error() method (HTTP 429 detection)
     - Implement _is_blocking_error() method (HTTP 401, 403, 402 detection)
@@ -215,7 +215,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Implement get_key_rotation_stats() method for observability
     - _Requirements: 2.6, 8.6-8.10, 11.2-11.17_
   
-  - [ ] 6.3 Implement search() method with retry and rotation
+  - [x] 6.3 Implement search() method with retry and rotation
     - Implement async search() method accepting SerperSearchParams
     - Add request construction with API key in headers
     - Add timeout handling (default 30s)
@@ -225,7 +225,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Update key state (last_used, total_requests) on success
     - _Requirements: 2.2, 2.4, 8.1-8.3, 11.15, 11.16_
   
-  - [ ] 6.4 Implement scrape() method with retry and rotation
+  - [x] 6.4 Implement scrape() method with retry and rotation
     - Implement async scrape() method accepting SerperScrapeParams
     - Add request construction with API key in headers
     - Add timeout handling (default 30s)
@@ -245,8 +245,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test timeout and network error handling
     - _Requirements: 9.1, 9.8-9.12_
 
-- [ ] 7. Python: Implement Serper tools with caching and audit logging
-  - [ ] 7.1 Create search_web tool with Pydantic validation
+- [x] 7. Python: Implement Serper tools with caching and audit logging
+  - [x] 7.1 Create search_web tool with Pydantic validation
     - Create `doa/tools/serper_tools.py`
     - Define SearchWebInput Pydantic model (query, num_results, time_range)
     - Implement async search_web() function with tool wrapper
@@ -257,7 +257,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Return structured results (title, link, snippet, date, position)
     - _Requirements: 3.1, 3.3, 3.5, 3.6, 3.8, 3.9_
   
-  - [ ] 7.2 Create scrape_webpage tool with Pydantic validation
+  - [x] 7.2 Create scrape_webpage tool with Pydantic validation
     - Define ScrapeWebpageInput Pydantic model (url)
     - Implement async scrape_webpage() function with tool wrapper
     - Add URL validation
@@ -267,7 +267,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Return structured results (url, title, text, metadata)
     - _Requirements: 3.2, 3.4, 3.7, 3.8, 3.9_
   
-  - [ ] 7.3 Create LangChain tool factories
+  - [x] 7.3 Create LangChain tool factories
     - Implement create_search_web_tool() factory function
     - Implement create_scrape_webpage_tool() factory function
     - Add comprehensive tool descriptions with usage examples
@@ -283,8 +283,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test tool factories (LangChain integration)
     - _Requirements: 9.2, 9.3_
 
-- [ ] 8. Python: Implement Web Research Agent node
-  - [ ] 8.1 Create agent system prompt for research strategy
+- [x] 8. Python: Implement Web Research Agent node
+  - [x] 8.1 Create agent system prompt for research strategy
     - Create `doa/nodes/web_research_agent.py`
     - Define WEB_RESEARCH_AGENT_SYSTEM_PROMPT constant (identical to TypeScript)
     - Include query formulation guidance (extract entities, timeframes)
@@ -295,7 +295,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Include output format specification (confidence, key_drivers, risk_factors, metadata)
     - _Requirements: 4.1-4.11, 5.1-5.13, 10.2, 10.4_
   
-  - [ ] 8.2 Implement web_research_agent_node() function
+  - [x] 8.2 Implement web_research_agent_node() function
     - Implement async node function accepting GraphState and Config
     - Add MBD availability check (return error if missing)
     - Add Serper API key check (return graceful degradation if missing)
@@ -307,7 +307,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Create ReAct agent with tools and system_message
     - _Requirements: 1.1-1.5, 2.7, 4.1, 4.2, 8.3_
   
-  - [ ] 8.3 Implement agent execution with timeout and tool limits
+  - [x] 8.3 Implement agent execution with timeout and tool limits
     - Prepare agent input with market question and metadata
     - Execute agent with ainvoke()
     - Add timeout wrapper (default 60s)
@@ -317,7 +317,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Return state update with agent_signals and audit_log
     - _Requirements: 4.4, 5.12, 5.13, 8.2_
   
-  - [ ] 8.4 Implement error handling and graceful degradation
+  - [x] 8.4 Implement error handling and graceful degradation
     - Add try-except wrapper for entire node execution
     - Return low-confidence neutral signal when API key missing
     - Return partial results on timeout with timeout flag
@@ -342,8 +342,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test performance and timeout behavior
     - _Requirements: 9.4_
 
-- [ ] 9. Python: Configuration and workflow integration
-  - [ ] 9.1 Add Serper and Web Research configuration
+- [x] 9. Python: Configuration and workflow integration
+  - [x] 9.1 Add Serper and Web Research configuration
     - Update `doa/config.py`
     - Add SerperConfig dataclass (api_key, search_url, scrape_url, timeout)
     - Add WebResearchConfig dataclass (enabled, max_tool_calls, timeout)
@@ -352,7 +352,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Add default values (search_url, scrape_url, timeouts, enabled=True, max_tool_calls=8)
     - _Requirements: 7.1-7.8_
   
-  - [ ] 9.2 Update .env.example with Serper configuration
+  - [x] 9.2 Update .env.example with Serper configuration
     - Update `doa/.env.example`
     - Add SERPER_API_KEY with description and multi-key example
     - Add SERPER_SEARCH_URL, SERPER_SCRAPE_URL, SERPER_TIMEOUT (optional)
@@ -360,7 +360,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Add comments explaining Serper API setup and multi-key rotation
     - _Requirements: 7.1-7.8, 10.5_
   
-  - [ ] 9.3 Integrate Web Research Agent into workflow
+  - [x] 9.3 Integrate Web Research Agent into workflow
     - Update `doa/main.py`
     - Import web_research_agent_node
     - Add web_research node conditionally (if config.web_research.enabled)
@@ -370,7 +370,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test workflow compilation and execution
     - _Requirements: 6.1-6.5_
   
-  - [ ] 9.4 Update Python type definitions
+  - [x] 9.4 Update Python type definitions
     - Update `doa/models/types.py`
     - Add SerperSearchResult Pydantic model
     - Add SerperScrapeResult Pydantic model
@@ -378,7 +378,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Add SerperConfig Pydantic model
     - _Requirements: 1.1, 2.1, 2.3_
 
-- [ ] 10. Checkpoint - Python implementation complete
+- [x] 10. Checkpoint - Python implementation complete
   - Ensure all Python tests pass
   - Verify workflow integration works end-to-end
   - Test with real Serper API key (if available)
@@ -473,15 +473,15 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Verify last_used updated and total_requests incremented
     - Run with 100+ iterations
 
-- [ ] 13. Documentation and deployment preparation
-  - [ ] 13.1 Add inline code documentation
+- [x] 13. Documentation and deployment preparation
+  - [x] 13.1 Add inline code documentation
     - Add JSDoc comments to all TypeScript classes and methods
     - Add Python docstrings to all classes and functions
     - Document all interfaces, types, and dataclasses
     - Document configuration options and defaults
     - _Requirements: 10.1, 10.3_
   
-  - [ ] 13.2 Create Serper API setup README
+  - [x] 13.2 Create Serper API setup README
     - Create `docs/serper-setup.md`
     - Document how to obtain Serper API keys
     - Document multi-key configuration format
@@ -489,21 +489,21 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Document troubleshooting common issues
     - _Requirements: 10.5_
   
-  - [ ] 13.3 Document research document format
+  - [x] 13.3 Document research document format
     - Add examples of well-structured research documents to agent prompt
     - Document expected sections (Background, Current Status, Key Events, etc.)
     - Document inline citation format
     - Document information quality assessment format
     - _Requirements: 10.4, 10.6_
   
-  - [ ] 13.4 Update main project documentation
+  - [x] 13.4 Update main project documentation
     - Update `tradewizard-agents/README.md` with Web Research Agent section
     - Update `doa/README.md` with Web Research Agent section
     - Document workflow integration and agent placement
     - Document configuration options
     - Add usage examples
 
-- [ ] 14. Final checkpoint - Complete implementation
+- [x] 14. Final checkpoint - Complete implementation
   - Ensure all tests pass (unit, property, integration) in both codebases
   - Verify TypeScript and Python implementations have feature parity
   - Test end-to-end workflow execution with real Serper API

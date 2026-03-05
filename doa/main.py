@@ -50,6 +50,7 @@ from database.persistence import PersistenceLayer
 # Import node factories
 from nodes.market_ingestion import create_market_ingestion_node
 from nodes.memory_retrieval import create_memory_retrieval_node
+from nodes.web_research_agent import web_research_agent_node
 from nodes.keyword_extraction import create_keyword_extraction_node
 from nodes.dynamic_agent_selection import create_dynamic_agent_selection_node
 from nodes.agent_signal_fusion import create_agent_signal_fusion_node
@@ -236,15 +237,16 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     Workflow Structure:
     1. START → market_ingestion
     2. market_ingestion → memory_retrieval
-    3. memory_retrieval → keyword_extraction
-    4. keyword_extraction → dynamic_agent_selection
-    5. dynamic_agent_selection → [parallel agents] (via Send API)
-    6. [all agents] → agent_signal_fusion (fan-in)
-    7. agent_signal_fusion → thesis_construction
-    8. thesis_construction → cross_examination
-    9. cross_examination → consensus_engine
-    10. consensus_engine → recommendation_generation
-    11. recommendation_generation → END
+    3. memory_retrieval → web_research (if enabled)
+    4. web_research → keyword_extraction (or memory_retrieval → keyword_extraction if disabled)
+    5. keyword_extraction → dynamic_agent_selection
+    6. dynamic_agent_selection → [parallel agents] (via Send API)
+    7. [all agents] → agent_signal_fusion (fan-in)
+    8. agent_signal_fusion → thesis_construction
+    9. thesis_construction → cross_examination
+    10. cross_examination → consensus_engine
+    11. consensus_engine → recommendation_generation
+    12. recommendation_generation → END
     
     Args:
         config: Engine configuration
@@ -286,6 +288,13 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
         "memory_retrieval",
         create_memory_retrieval_node(persistence_layer, config)
     )
+    
+    # Web Research Agent node (conditional)
+    if config.web_research.enabled:
+        workflow.add_node(
+            "web_research",
+            lambda state: web_research_agent_node(state, config)
+        )
     
     # Keyword extraction node
     workflow.add_node(
@@ -338,10 +347,17 @@ def build_market_analysis_graph(config: EngineConfig) -> StateGraph:
     # Define workflow edges
     # ========================================================================
     
-    # Sequential edges: START → market_ingestion → memory_retrieval → keyword_extraction → dynamic_agent_selection
+    # Sequential edges: START → market_ingestion → memory_retrieval → web_research (if enabled) → keyword_extraction → dynamic_agent_selection
     workflow.add_edge(START, "market_ingestion")
     workflow.add_edge("market_ingestion", "memory_retrieval")
-    workflow.add_edge("memory_retrieval", "keyword_extraction")
+    
+    # Conditional edge for web research
+    if config.web_research.enabled:
+        workflow.add_edge("memory_retrieval", "web_research")
+        workflow.add_edge("web_research", "keyword_extraction")
+    else:
+        workflow.add_edge("memory_retrieval", "keyword_extraction")
+    
     workflow.add_edge("keyword_extraction", "dynamic_agent_selection")
     
     # Conditional edges for parallel agent dispatch (fan-out)

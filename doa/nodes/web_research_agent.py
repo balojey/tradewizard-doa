@@ -1,0 +1,377 @@
+"""
+Web Research Agent Node
+
+This module implements an autonomous web research agent that uses
+LangChain's tool-calling capabilities to search the web and scrape webpages.
+The agent can autonomously decide which tools to use based on market context.
+
+Key Features:
+- ReAct (Reasoning + Acting) pattern for autonomous tool selection
+- Web search and webpage scraping via Serper API
+- Multi-key API rotation for automatic failover on rate limits
+- Tool result caching to avoid redundant API calls
+- Comprehensive audit logging for debugging and analysis
+- Graceful error handling with fallback support
+
+Requirements: 1.1-1.5, 2.1-2.7, 3.1-3.11, 4.1-4.11, 5.1-5.13, 6.1-6.5, 8.1-8.11
+"""
+
+import asyncio
+import json
+import logging
+import time
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+from langgraph.prebuilt import create_react_agent
+
+from ..config import Config
+from ..models.state import GraphState
+from ..models.types import AgentSignal
+from ..tools.serper_client import SerperClient, SerperConfig
+from ..tools.serper_tools import (
+    ToolContext,
+    create_search_web_tool,
+    create_scrape_webpage_tool,
+    get_tool_usage_summary,
+)
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
+
+# ============================================================================
+# System Prompt
+# ============================================================================
+
+def get_web_research_agent_system_prompt() -> str:
+    """
+    System prompt for the Web Research Agent
+    
+    This prompt defines the agent's role, available tools, research strategy,
+    and output format requirements. It guides the agent to intelligently select
+    tools based on market characteristics and synthesize information from multiple
+    sources into a comprehensive research document.
+    
+    Requirements: 4.1-4.11, 5.1-5.13, 10.2, 10.4
+    """
+    return f"""Current date and time: {datetime.now().isoformat()}
+
+You are an autonomous web research analyst with the ability to search the web and extract webpage content.
+
+Your role is to gather comprehensive, factual context about prediction markets by researching the web for relevant information about the events, people, organizations, and circumstances that drive market outcomes.
+
+AVAILABLE TOOLS:
+You have access to the following tools:
+
+1. search_web: Search the web using Google search with time range filtering
+2. scrape_webpage: Extract full content from specific webpage URLs
+
+RESEARCH STRATEGY:
+Based on the market question, intelligently formulate search queries and decide which sources to scrape:
+
+QUERY FORMULATION:
+- Extract key entities (people, organizations, locations, events) from the market question
+- Identify the core event or decision being predicted
+- Determine relevant timeframes (election dates, policy deadlines, event dates)
+- Formulate 2-3 targeted search queries covering different aspects
+
+SEARCH PRIORITIZATION:
+- For geopolitical markets: Search for "conflict status", "diplomatic relations", "recent developments"
+- For election markets: Search for "candidate polling", "campaign events", "endorsements"
+- For policy markets: Search for "legislative status", "committee votes", "stakeholder positions"
+- For company markets: Search for "recent news", "financial performance", "regulatory filings"
+- For sports/entertainment: Search for "recent performance", "injury reports", "expert predictions"
+
+SOURCE SELECTION FOR SCRAPING:
+- Prioritize authoritative sources: major news outlets, official government sites, research institutions
+- Scrape 2-4 highly relevant URLs that provide comprehensive information
+- Avoid low-quality sources, social media posts, or opinion blogs
+- Focus on recent sources (within relevant timeframe for the market)
+
+TOOL USAGE LIMITS:
+- Maximum 8 tool calls total (combining search and scrape operations)
+- Typical pattern: 2-3 searches, 2-4 scrapes
+- Start with broad search, then scrape most relevant sources
+- If initial search yields poor results, reformulate query
+
+RESEARCH DOCUMENT SYNTHESIS:
+Your final output MUST be a comprehensive, well-structured research document that synthesizes all gathered information.
+
+CRITICAL REQUIREMENTS:
+- DO NOT output raw search results or lists of URLs
+- DO NOT output snippets or fragments
+- DO synthesize information from multiple sources into a coherent narrative
+- DO organize information into clear sections
+- DO include inline citations with URLs
+- DO assess information recency and flag stale data
+- DO identify conflicting information and explain discrepancies
+
+DOCUMENT STRUCTURE:
+Your research document should include:
+
+1. Background: Historical context and foundational information
+2. Current Status: Present state of affairs as of latest information
+3. Key Events: Timeline of significant developments
+4. Stakeholders: Relevant people, organizations, and their positions
+5. Recent Developments: Latest news and changes (with dates)
+6. Information Quality Assessment: Recency, source credibility, conflicts
+
+WRITING STYLE:
+- Plain, factual language with no speculation or ambiguous terms
+- Highly informative and comprehensive
+- Easily readable by other AI agents without domain expertise
+- Include specific dates, numbers, and concrete facts
+- Cite sources inline: "According to [Source Name](URL), ..."
+
+OUTPUT FORMAT:
+Provide your analysis as a structured signal with:
+- confidence: Your confidence in research quality (0-1, based on source credibility, recency, comprehensiveness)
+- direction: NEUTRAL (research agents don't predict outcomes)
+- fairProbability: 0.5 (research agents don't estimate probabilities)
+- keyDrivers: Your comprehensive research document (NOT raw search results)
+- riskFactors: Information gaps, stale data, conflicting sources, or research limitations
+- metadata: Include source count, search queries used, URLs scraped, information recency
+
+Be thorough and document your research process."""
+
+
+# ============================================================================
+# Agent Node Function
+# ============================================================================
+
+async def web_research_agent_node(
+    state: GraphState,
+    config: Config
+) -> Dict[str, Any]:
+    """
+    Web Research Agent node for the workflow
+    
+    This node creates an autonomous agent that searches the web and scrapes
+    webpages to gather comprehensive context about prediction markets.
+    
+    Requirements: 1.1-1.5, 2.1-2.7, 3.1-3.11, 4.1-4.11, 5.1-5.13, 6.1-6.5, 8.1-8.11
+    
+    Args:
+        state: Current graph state
+        config: Engine configuration
+        
+    Returns:
+        State update dictionary with agent signals or errors
+    """
+    start_time = time.time()
+    agent_name = 'web_research'
+    
+    # Initialize these at the top level so they're available in error handling
+    tool_audit_log: List[Dict[str, Any]] = []
+    cache: Dict[str, Any] = {}
+    
+    try:
+        # Step 1: Check for MBD availability (Requirement 4.1)
+        if not state.get('mbd'):
+            error_message = 'No Market Briefing Document available'
+            logger.error(f"[{agent_name}] {error_message}")
+            
+            return {
+                'agent_errors': [{
+                    'type': 'EXECUTION_FAILED',
+                    'agent_name': agent_name,
+                    'error': error_message,
+                }],
+                'audit_log': [{
+                    'stage': f'agent_{agent_name}',
+                    'timestamp': time.time(),
+                    'data': {
+                        'agent_name': agent_name,
+                        'success': False,
+                        'error': error_message,
+                        'error_context': 'Missing MBD',
+                        'duration': time.time() - start_time,
+                    },
+                }],
+            }
+        
+        # Step 2: Check for Serper configuration (Requirement 2.7, 8.3)
+        if not config.serper or not config.serper.api_key:
+            error_message = (
+                'Serper configuration not available'
+                if not config.serper
+                else 'Serper API key not configured'
+            )
+            logger.warning(
+                f"[{agent_name}] {error_message}, returning graceful degradation"
+            )
+            
+            # Return low-confidence neutral signal (Requirement 8.3)
+            signal = AgentSignal(
+                agent_name=agent_name,
+                confidence=0.1,
+                direction='NEUTRAL',
+                fair_probability=0.5,
+                key_drivers=[
+                    'Web research unavailable: Serper API key not configured',
+                    'Unable to gather external context for this market',
+                    'Other agents will proceed without web research context',
+                ],
+                risk_factors=[
+                    'No web research performed',
+                    'Limited external context available',
+                ],
+                metadata={
+                    'web_research_available': False,
+                    'reason': 'API key not configured',
+                },
+            )
+            
+            return {
+                'agent_signals': [signal.model_dump()],
+                'audit_log': [{
+                    'stage': f'agent_{agent_name}',
+                    'timestamp': time.time(),
+                    'data': {
+                        'agent_name': agent_name,
+                        'success': True,
+                        'graceful_degradation': True,
+                        'duration': time.time() - start_time,
+                    },
+                }],
+            }
+        
+        # Step 3: Initialize Serper client (Requirement 2.1)
+        serper_client = SerperClient(config.serper)
+        
+        # Step 4: Create tool cache (Requirement 3.8)
+        cache = {}
+        
+        # Step 5: Create tool audit log (Requirement 3.9)
+        tool_audit_log = []
+        
+        # Step 6: Create tool context
+        tool_context = ToolContext(
+            serper_client=serper_client,
+            cache=cache,
+            audit_log=tool_audit_log,
+            agent_name=agent_name,
+        )
+        
+        # Step 7: Create web research tools (Requirement 3.1, 3.2)
+        tools = [
+            create_search_web_tool(tool_context),
+            create_scrape_webpage_tool(tool_context),
+        ]
+        
+        # Step 8: Create LLM instance (Requirement 4.2)
+        # Import here to avoid circular dependency
+        from ..llms import create_llm_instance
+        llm = create_llm_instance(config, 'google', ['openai', 'anthropic'])
+        
+        # Step 9: Create ReAct agent with tools and system prompt (Requirement 4.1)
+        agent = create_react_agent(
+            llm=llm,
+            tools=tools,
+            state_modifier=get_web_research_agent_system_prompt(),
+        )
+        
+        # Step 10: Prepare agent input with market data (Requirement 4.1)
+        mbd = state['mbd']
+        agent_input = {
+            'messages': [{
+                'role': 'user',
+                'content': f"""Analyze this prediction market and gather comprehensive web research:
+
+Market Question: {mbd.get('question', 'N/A')}
+Market Description: {mbd.get('description', 'N/A')}
+Market Category: {mbd.get('category', 'N/A')}
+Market Tags: {', '.join(mbd.get('tags', [])) if mbd.get('tags') else 'N/A'}
+
+Please search the web and scrape relevant sources to provide comprehensive context about this market.""",
+            }],
+        }
+        
+        # Step 11: Execute agent with timeout and tool limits (Requirement 4.4, 5.12, 8.2)
+        max_tool_calls = config.web_research.max_tool_calls if config.web_research else 8
+        timeout = config.web_research.timeout if config.web_research else 60
+        
+        try:
+            agent_result = await asyncio.wait_for(
+                agent.ainvoke(
+                    agent_input,
+                    config={'recursion_limit': max_tool_calls + 5}  # Allow for reasoning steps
+                ),
+                timeout=timeout
+            )
+        except asyncio.TimeoutError:
+            raise TimeoutError('Agent timeout')
+        
+        # Step 12: Extract final message
+        final_message = agent_result['messages'][-1]
+        agent_output = final_message.content
+        
+        # Step 13: Parse agent output as signal (Requirement 5.12)
+        try:
+            signal_data = json.loads(agent_output)
+            signal = AgentSignal(**signal_data)
+        except (json.JSONDecodeError, Exception):
+            # If parsing fails, create signal from text output
+            signal = AgentSignal(
+                agent_name=agent_name,
+                confidence=0.7,
+                direction='NEUTRAL',
+                fair_probability=0.5,
+                key_drivers=[agent_output],
+                risk_factors=['Unable to parse structured output'],
+                metadata={'parse_error': True},
+            )
+        
+        # Step 14: Add tool usage metadata (Requirement 5.13)
+        tool_usage = get_tool_usage_summary(tool_audit_log)
+        signal.metadata = {
+            **(signal.metadata or {}),
+            'tools_called': tool_usage['tools_called'],
+            'total_tool_time': tool_usage['total_tool_time'],
+            'cache_hits': tool_usage['cache_hits'],
+            'cache_misses': tool_usage['cache_misses'],
+            'tool_breakdown': tool_usage['tool_breakdown'],
+        }
+        
+        # Step 15: Return state update (Requirement 6.3, 6.4)
+        return {
+            'agent_signals': [signal.model_dump()],
+            'audit_log': [{
+                'stage': f'agent_{agent_name}',
+                'timestamp': time.time(),
+                'data': {
+                    'agent_name': agent_name,
+                    'success': True,
+                    'duration': time.time() - start_time,
+                    'tool_usage': tool_usage,
+                },
+            }],
+        }
+        
+    except Exception as error:
+        # Step 16: Error handling (Requirement 8.1-8.11)
+        logger.error(f"[{agent_name}] Error: {str(error)}", exc_info=True)
+        
+        # Check if it's a timeout error (Requirement 8.2)
+        is_timeout = isinstance(error, TimeoutError)
+        
+        return {
+            'agent_errors': [{
+                'type': 'EXECUTION_FAILED',
+                'agent_name': agent_name,
+                'error': str(error),
+            }],
+            'audit_log': [{
+                'stage': f'agent_{agent_name}',
+                'timestamp': time.time(),
+                'data': {
+                    'agent_name': agent_name,
+                    'success': False,
+                    'error': str(error),
+                    'is_timeout': is_timeout,
+                    'duration': time.time() - start_time,
+                    'tool_usage': get_tool_usage_summary(tool_audit_log) if tool_audit_log else None,
+                },
+            }],
+        }

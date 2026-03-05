@@ -230,6 +230,53 @@ class MemorySystemConfig:
 
 
 @dataclass
+class SerperConfig:
+    """Serper API configuration."""
+    api_key: str
+    search_url: str = "https://google.serper.dev/search"
+    scrape_url: str = "https://scrape.serper.dev"
+    timeout: int = 30
+    
+    def validate(self) -> List[str]:
+        """Validate Serper configuration."""
+        errors = []
+        
+        if not self.api_key:
+            errors.append("SERPER_API_KEY is required for web research")
+        
+        if not self.search_url.startswith(("http://", "https://")):
+            errors.append("SERPER_SEARCH_URL must be a valid URL")
+        
+        if not self.scrape_url.startswith(("http://", "https://")):
+            errors.append("SERPER_SCRAPE_URL must be a valid URL")
+        
+        if self.timeout <= 0:
+            errors.append("SERPER_TIMEOUT must be positive")
+        
+        return errors
+
+
+@dataclass
+class WebResearchConfig:
+    """Web Research Agent configuration."""
+    enabled: bool
+    max_tool_calls: int
+    timeout: int
+    
+    def validate(self) -> List[str]:
+        """Validate Web Research configuration."""
+        errors = []
+        
+        if self.max_tool_calls <= 0:
+            errors.append("WEB_RESEARCH_MAX_TOOL_CALLS must be positive")
+        
+        if self.timeout <= 0:
+            errors.append("WEB_RESEARCH_TIMEOUT must be positive")
+        
+        return errors
+
+
+@dataclass
 class OpikConfig:
     """Opik observability configuration."""
     api_key: Optional[str]
@@ -297,6 +344,8 @@ class EngineConfig:
     newsdata: NewsDataConfig
     autonomous_agents: AutonomousAgentConfig
     opik: OpikConfig
+    serper: Optional[SerperConfig]
+    web_research: WebResearchConfig
 
     def validate(self) -> None:
         """
@@ -318,6 +367,13 @@ class EngineConfig:
         all_errors.extend(self.newsdata.validate())
         all_errors.extend(self.autonomous_agents.validate())
         all_errors.extend(self.opik.validate())
+        
+        # Validate Serper if configured
+        if self.serper:
+            all_errors.extend(self.serper.validate())
+        
+        # Validate Web Research
+        all_errors.extend(self.web_research.validate())
 
         if all_errors:
             error_message = "Configuration validation failed:\n" + "\n".join(
@@ -392,6 +448,17 @@ class EngineConfig:
                 "base_url": self.opik.base_url,
                 "track_costs": self.opik.track_costs,
                 "api_key_configured": bool(self.opik.api_key),
+            },
+            "serper": {
+                "api_key_configured": bool(self.serper and self.serper.api_key),
+                "search_url": self.serper.search_url if self.serper else None,
+                "scrape_url": self.serper.scrape_url if self.serper else None,
+                "timeout": self.serper.timeout if self.serper else None,
+            } if self.serper else None,
+            "web_research": {
+                "enabled": self.web_research.enabled,
+                "max_tool_calls": self.web_research.max_tool_calls,
+                "timeout": self.web_research.timeout,
             },
         }
 
@@ -550,6 +617,23 @@ def load_config() -> EngineConfig:
         track_costs=os.getenv("OPIK_TRACK_COSTS", "true").lower() == "true"
     )
     
+    # Serper configuration (optional)
+    serper = None
+    if os.getenv("SERPER_API_KEY"):
+        serper = SerperConfig(
+            api_key=os.getenv("SERPER_API_KEY"),
+            search_url=os.getenv("SERPER_SEARCH_URL", "https://google.serper.dev/search"),
+            scrape_url=os.getenv("SERPER_SCRAPE_URL", "https://scrape.serper.dev"),
+            timeout=int(os.getenv("SERPER_TIMEOUT", "30"))
+        )
+    
+    # Web Research configuration
+    web_research = WebResearchConfig(
+        enabled=os.getenv("WEB_RESEARCH_ENABLED", "true").lower() == "true",
+        max_tool_calls=int(os.getenv("WEB_RESEARCH_MAX_TOOL_CALLS", "8")),
+        timeout=int(os.getenv("WEB_RESEARCH_TIMEOUT", "60"))
+    )
+    
     # Create and validate configuration
     config = EngineConfig(
         polymarket=polymarket,
@@ -561,7 +645,9 @@ def load_config() -> EngineConfig:
         memory_system=memory_system,
         newsdata=newsdata,
         autonomous_agents=autonomous_agents,
-        opik=opik
+        opik=opik,
+        serper=serper,
+        web_research=web_research
     )
     
     # Validate all configuration

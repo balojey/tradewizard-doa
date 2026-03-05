@@ -74,6 +74,9 @@ Trade Recommendation Output
 - **Catalyst**: Identifies potential catalysts that could move markets
 - **Tail Risk**: Models low-probability, high-impact scenarios
 
+**Web Research Agent**:
+- **Web Research**: Gathers real-world context by searching the web and scraping relevant sources using Serper API
+
 ## Prerequisites
 
 - Python 3.10+
@@ -394,6 +397,9 @@ Ensure these environment variables are configured in your deployment:
 DIGITALOCEAN_INFERENCE_KEY=your_inference_key
 SUPABASE_URL=your_supabase_url
 SUPABASE_KEY=your_supabase_key
+
+# Optional for web research
+SERPER_API_KEY=your_serper_api_key
 
 # Optional for observability
 OPIK_API_KEY=your_opik_api_key

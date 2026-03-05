@@ -210,3 +210,39 @@ class AnalysisResult(BaseModel):
     debate_record: Optional[DebateRecord]
     audit_log: List[AuditEntry]
     analysis_timestamp: int
+
+
+# ============================================================================
+# Web Research Agent Types
+# ============================================================================
+
+class SerperSearchResult(BaseModel):
+    """Individual search result from Serper API."""
+    title: str
+    link: str
+    snippet: str
+    date: Optional[str] = None
+    position: int
+
+
+class SerperScrapeResult(BaseModel):
+    """Scraped webpage content from Serper API."""
+    url: str
+    title: Optional[str] = None
+    text: Optional[str] = None
+    metadata: Optional[Dict[str, Any]] = None
+
+
+class WebResearchConfig(BaseModel):
+    """Web Research Agent configuration."""
+    enabled: bool = True
+    max_tool_calls: int = 8
+    timeout: int = 60
+
+
+class SerperConfig(BaseModel):
+    """Serper API configuration."""
+    api_key: str
+    search_url: str = "https://google.serper.dev/search"
+    scrape_url: str = "https://scrape.serper.dev"
+    timeout: int = 30
