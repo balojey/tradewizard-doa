@@ -210,6 +210,7 @@ export class DatabasePersistenceImpl implements DatabasePersistence {
         target_zone_min: recommendation.targetZone[0],
         target_zone_max: recommendation.targetZone[1],
         explanation: recommendation.explanation.summary,
+        core_thesis: recommendation.explanation.coreThesis,
         catalysts: recommendation.explanation.keyCatalysts,
         risks: recommendation.explanation.failureScenarios,
       };

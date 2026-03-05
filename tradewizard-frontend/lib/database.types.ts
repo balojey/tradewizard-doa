@@ -310,6 +310,7 @@ export type Database = {
         Row: {
           catalysts: Json | null
           confidence: string
+          core_thesis: string | null
           created_at: string | null
           direction: string
           entry_zone_max: number | null
@@ -328,6 +329,7 @@ export type Database = {
         Insert: {
           catalysts?: Json | null
           confidence: string
+          core_thesis?: string | null
           created_at?: string | null
           direction: string
           entry_zone_max?: number | null
@@ -346,6 +348,7 @@ export type Database = {
         Update: {
           catalysts?: Json | null
           confidence?: string
+          core_thesis?: string | null
           created_at?: string | null
           direction?: string
           entry_zone_max?: number | null

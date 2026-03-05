@@ -280,6 +280,7 @@ class PersistenceLayer:
                 target_zone_min=recommendation.target_zone[0],
                 target_zone_max=recommendation.target_zone[1],
                 explanation=recommendation.explanation.summary,
+                core_thesis=recommendation.explanation.core_thesis,
                 catalysts={"catalysts": recommendation.explanation.key_catalysts},
                 risks={"scenarios": recommendation.explanation.failure_scenarios}
             )
