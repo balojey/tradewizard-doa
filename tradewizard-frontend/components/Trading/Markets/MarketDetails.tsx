@@ -21,7 +21,6 @@ import AIInsightsPanel from "@/components/Trading/Markets/AIInsightsPanel";
 import RealAgentDebatePanel from "@/components/Trading/Markets/RealAgentDebatePanel";
 import AgentWorkflowDiagram from "@/components/Trading/Markets/AgentWorkflowDiagram";
 import AgentInteractionNetwork from "@/components/Trading/Markets/AgentInteractionNetwork";
-import ConsensusFormationTimeline from "@/components/Trading/Markets/ConsensusFormationTimeline";
 import AgentOutputComparison from "@/components/Trading/Markets/AgentOutputComparison";
 import QuickTradeService from "@/components/Trading/QuickTradeService";
 import RecommendationHistory from "@/components/Trading/Markets/RecommendationHistory";
@@ -378,7 +377,7 @@ export default function MarketDetails({ market }: MarketDetailsProps) {
                             )}
 
                             {activeTab === 'data-flow' && (
-                                <div className="space-y-6 sm:space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                                <div className="space-y-6 sm:space-y-8 animate-in fade-in-from-bottom-2 duration-500">
                                     <AgentWorkflowDiagram
                                         conditionId={market.conditionId || null}
                                         marketQuestion={market.question}
@@ -386,10 +385,6 @@ export default function MarketDetails({ market }: MarketDetailsProps) {
                                     <AgentInteractionNetwork
                                         conditionId={market.conditionId || null}
                                         marketQuestion={market.question}
-                                        recommendationId={recommendation?.id || null}
-                                    />
-                                    <ConsensusFormationTimeline
-                                        conditionId={market.conditionId || null}
                                         recommendationId={recommendation?.id || null}
                                     />
                                     <AgentOutputComparison
