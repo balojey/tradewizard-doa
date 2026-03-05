@@ -294,8 +294,20 @@ async def cross_examination_node(
             bear_score: float = Field(ge=-1.0, le=1.0)
             key_disagreements: TypingList[str] = Field(min_length=1, max_length=5)
         
-        # Create LLM instance with structured output for cross-examination
-        llm = create_llm_instance(config.llm, structured_output_model=CrossExaminationOutput)
+        # Create LLM instance with rotation support and structured output for cross-examination
+        from utils.llm_rotation_manager import LLMRotationManager
+        
+        rotation_manager = None
+        if len(config.llm.model_names) > 1:
+            model_names_str = ",".join(config.llm.model_names)
+            rotation_manager = LLMRotationManager(model_names_str)
+            logger.info(f"[cross_examination] Created rotation manager with {len(config.llm.model_names)} models")
+        
+        llm = create_llm_instance(
+            config.llm, 
+            rotation_manager=rotation_manager,
+            structured_output_model=CrossExaminationOutput
+        )
         
         # Define test types
         test_types: List[Literal["evidence", "causality", "timing", "liquidity", "tail-risk"]] = [

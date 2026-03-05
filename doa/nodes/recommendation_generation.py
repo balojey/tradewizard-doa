@@ -401,8 +401,16 @@ Respond in JSON format with these fields:
   "failureScenarios": ["specific scenario 1", "specific scenario 2", "specific scenario 3"]
 }}"""
 
-        # Create LLM instance
-        llm = create_llm_instance(config.llm)
+        # Create LLM instance with rotation support
+        from utils.llm_rotation_manager import LLMRotationManager
+        
+        rotation_manager = None
+        if len(config.llm.model_names) > 1:
+            model_names_str = ",".join(config.llm.model_names)
+            rotation_manager = LLMRotationManager(model_names_str)
+            logger.info(f"[recommendation_generation] Created rotation manager with {len(config.llm.model_names)} models")
+        
+        llm = create_llm_instance(config.llm, rotation_manager=rotation_manager)
         
         # Invoke LLM
         from langchain_core.messages import SystemMessage, HumanMessage
