@@ -143,7 +143,7 @@ function transformRecommendation(
     liquidityRisk,
     explanation: {
       summary: rec.explanation || 'No explanation available',
-      coreThesis: rec.core_thesis || rec.explanation || 'No thesis available',
+      coreThesis: rec.core_thesis || 'No detailed thesis available',
       keyCatalysts: catalysts,
       failureScenarios: risks,
       uncertaintyNote: disagreementIndex > 0.15 ? 
