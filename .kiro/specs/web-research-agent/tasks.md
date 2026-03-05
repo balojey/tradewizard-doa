@@ -8,8 +8,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
 
 ## Tasks
 
-- [ ] 1. TypeScript: Implement Serper API Client with multi-key rotation
-  - [ ] 1.1 Create SerperClient class with KeyState management
+- [x] 1. TypeScript: Implement Serper API Client with multi-key rotation
+  - [x] 1.1 Create SerperClient class with KeyState management
     - Create `tradewizard-agents/src/utils/serper-client.ts`
     - Implement KeyState interface (key, keyId, isRateLimited, rateLimitExpiry, totalRequests, lastUsed)
     - Implement SerperConfig, SerperSearchParams, SerperScrapeParams interfaces
@@ -17,7 +17,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Initialize SerperClient constructor with multi-key parsing (comma-separated)
     - _Requirements: 2.1, 2.5, 7.8, 11.1_
   
-  - [ ] 1.2 Implement key rotation methods following NewsData pattern
+  - [x] 1.2 Implement key rotation methods following NewsData pattern
     - Implement getKeyId() method (first 8 characters)
     - Implement isRateLimitError() method (HTTP 429 detection)
     - Implement isBlockingError() method (HTTP 401, 403, 402 detection)
@@ -27,7 +27,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Implement getKeyRotationStats() method for observability
     - _Requirements: 2.6, 8.6-8.10, 11.2-11.17_
   
-  - [ ] 1.3 Implement search() method with retry and rotation
+  - [x] 1.3 Implement search() method with retry and rotation
     - Implement search() method accepting SerperSearchParams
     - Add request construction with API key in headers
     - Add timeout handling (default 30s)
@@ -37,7 +37,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Update key state (lastUsed, totalRequests) on success
     - _Requirements: 2.2, 2.4, 8.1-8.3, 11.15, 11.16_
   
-  - [ ] 1.4 Implement scrape() method with retry and rotation
+  - [x] 1.4 Implement scrape() method with retry and rotation
     - Implement scrape() method accepting SerperScrapeParams
     - Add request construction with API key in headers
     - Add timeout handling (default 30s)
@@ -57,8 +57,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test timeout and network error handling
     - _Requirements: 9.1, 9.8-9.12_
 
-- [ ] 2. TypeScript: Implement Serper tools with caching and audit logging
-  - [ ] 2.1 Create search_web tool with Zod validation
+- [x] 2. TypeScript: Implement Serper tools with caching and audit logging
+  - [x] 2.1 Create search_web tool with Zod validation
     - Create `tradewizard-agents/src/tools/serper-tools.ts`
     - Define SearchWebInputSchema with Zod (query, numResults, timeRange)
     - Implement searchWeb() function with tool wrapper
@@ -69,7 +69,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Return structured results (title, link, snippet, date, position)
     - _Requirements: 3.1, 3.3, 3.5, 3.6, 3.8, 3.9_
   
-  - [ ] 2.2 Create scrape_webpage tool with Zod validation
+  - [x] 2.2 Create scrape_webpage tool with Zod validation
     - Define ScrapeWebpageInputSchema with Zod (url)
     - Implement scrapeWebpage() function with tool wrapper
     - Add URL validation
@@ -79,7 +79,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Return structured results (url, title, text, metadata)
     - _Requirements: 3.2, 3.4, 3.7, 3.8, 3.9_
   
-  - [ ] 2.3 Create LangChain tool factories
+  - [x] 2.3 Create LangChain tool factories
     - Implement createSearchWebTool() factory function
     - Implement createScrapeWebpageTool() factory function
     - Add comprehensive tool descriptions with usage examples
@@ -95,8 +95,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test tool factories (LangChain integration)
     - _Requirements: 9.2, 9.3_
 
-- [ ] 3. TypeScript: Implement Web Research Agent node
-  - [ ] 3.1 Create agent system prompt for research strategy
+- [x] 3. TypeScript: Implement Web Research Agent node
+  - [x] 3.1 Create agent system prompt for research strategy
     - Create `tradewizard-agents/src/nodes/web-research-agent.ts`
     - Define WEB_RESEARCH_AGENT_SYSTEM_PROMPT constant
     - Include query formulation guidance (extract entities, timeframes)
@@ -107,7 +107,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Include output format specification (confidence, keyDrivers, riskFactors, metadata)
     - _Requirements: 4.1-4.11, 5.1-5.13, 10.2, 10.4_
   
-  - [ ] 3.2 Implement createWebResearchAgentNode() function
+  - [x] 3.2 Implement createWebResearchAgentNode() function
     - Implement node factory function accepting EngineConfig
     - Add MBD availability check (return error if missing)
     - Add Serper API key check (return graceful degradation if missing)
@@ -119,7 +119,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Create ReAct agent with tools and system prompt
     - _Requirements: 1.1-1.5, 2.7, 4.1, 4.2, 8.3_
   
-  - [ ] 3.3 Implement agent execution with timeout and tool limits
+  - [x] 3.3 Implement agent execution with timeout and tool limits
     - Prepare agent input with market question and metadata
     - Execute agent with recursionLimit (maxToolCalls + 5 for reasoning)
     - Add timeout wrapper (default 60s)
@@ -129,7 +129,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Return state update with agentSignals and auditLog
     - _Requirements: 4.4, 5.12, 5.13, 8.2_
   
-  - [ ] 3.4 Implement error handling and graceful degradation
+  - [x] 3.4 Implement error handling and graceful degradation
     - Add try-catch wrapper for entire node execution
     - Return low-confidence neutral signal when API key missing
     - Return partial results on timeout with timeout flag
@@ -154,8 +154,8 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test performance and timeout behavior
     - _Requirements: 9.4_
 
-- [ ] 4. TypeScript: Configuration and workflow integration
-  - [ ] 4.1 Add Serper and Web Research configuration
+- [x] 4. TypeScript: Configuration and workflow integration
+  - [x] 4.1 Add Serper and Web Research configuration
     - Update `tradewizard-agents/src/config/index.ts`
     - Add SerperConfig interface (apiKey, searchUrl, scrapeUrl, timeout)
     - Add WebResearchConfig interface (enabled, maxToolCalls, timeout)
@@ -164,7 +164,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Add default values (searchUrl, scrapeUrl, timeouts, enabled=true, maxToolCalls=8)
     - _Requirements: 7.1-7.8_
   
-  - [ ] 4.2 Update .env.example with Serper configuration
+  - [x] 4.2 Update .env.example with Serper configuration
     - Update `tradewizard-agents/.env.example`
     - Add SERPER_API_KEY with description and multi-key example
     - Add SERPER_SEARCH_URL, SERPER_SCRAPE_URL, SERPER_TIMEOUT (optional)
@@ -172,7 +172,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Add comments explaining Serper API setup and multi-key rotation
     - _Requirements: 7.1-7.8, 10.5_
   
-  - [ ] 4.3 Integrate Web Research Agent into workflow
+  - [x] 4.3 Integrate Web Research Agent into workflow
     - Update `tradewizard-agents/src/workflow.ts`
     - Import createWebResearchAgentNode
     - Add web_research node conditionally (if config.webResearch.enabled)
@@ -182,7 +182,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Test workflow compilation and execution
     - _Requirements: 6.1-6.5_
   
-  - [ ] 4.4 Update TypeScript type definitions
+  - [x] 4.4 Update TypeScript type definitions
     - Update `tradewizard-agents/src/models/types.ts`
     - Add SerperSearchResult interface
     - Add SerperScrapeResult interface
@@ -190,7 +190,7 @@ Implementation follows a phased approach: TypeScript core infrastructure first, 
     - Add SerperConfig interface
     - _Requirements: 1.1, 2.1, 2.3_
 
-- [ ] 5. Checkpoint - TypeScript implementation complete
+- [x] 5. Checkpoint - TypeScript implementation complete
   - Ensure all TypeScript tests pass
   - Verify workflow integration works end-to-end
   - Test with real Serper API key (if available)

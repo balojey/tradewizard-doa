@@ -42,6 +42,7 @@ import {
   createAutonomousMediaSentimentAgentNode,
   createAutonomousMarketMicrostructureAgentNode,
 } from './nodes/index.js';
+import { createWebResearchAgentNode } from './nodes/web-research-agent.js';
 
 /**
  * Create the Market Intelligence Engine workflow
@@ -155,6 +156,11 @@ export async function createWorkflow(
   }
   const marketMicrostructureAgentNode = createAutonomousMarketMicrostructureAgentNode(config);
   
+  // Create Web Research Agent (conditionally enabled)
+  const webResearchAgent = config.webResearch?.enabled !== false 
+    ? createWebResearchAgentNode(config)
+    : null;
+  
   const historicalPatternAgent = createHistoricalPatternAgentNode(config);
   const socialSentimentAgent = createSocialSentimentAgentNode(config);
   const narrativeVelocityAgent = createNarrativeVelocityAgentNode(config);
@@ -169,7 +175,14 @@ export async function createWorkflow(
   const workflow = new StateGraph(GraphState)
     // Add all nodes to the graph
     .addNode('market_ingestion', marketIngestion)
-    .addNode('memory_retrieval', memoryRetrieval)
+    .addNode('memory_retrieval', memoryRetrieval);
+  
+  // Add Web Research Agent node (conditionally)
+  if (webResearchAgent) {
+    workflow.addNode('web_research', webResearchAgent);
+  }
+  
+  workflow
     .addNode('keyword_extraction', keywordExtraction)
     .addNode('dynamic_agent_selection', dynamicAgentSelection)
     
@@ -234,11 +247,16 @@ export async function createWorkflow(
       }
     )
 
-    // Add edge from memory retrieval to keyword extraction
-    .addEdge('memory_retrieval', 'keyword_extraction')
+    // Add edge from memory retrieval to web research or keyword extraction
+    if (webResearchAgent) {
+      workflow.addEdge('memory_retrieval', 'web_research');
+      workflow.addEdge('web_research', 'keyword_extraction');
+    } else {
+      workflow.addEdge('memory_retrieval', 'keyword_extraction');
+    }
 
     // Add edge from keyword extraction to dynamic agent selection
-    .addEdge('keyword_extraction', 'dynamic_agent_selection')
+    workflow.addEdge('keyword_extraction', 'dynamic_agent_selection');
 
     // Add conditional edges from dynamic agent selection to all agent nodes
     // Agents execute in parallel based on activeAgents list
