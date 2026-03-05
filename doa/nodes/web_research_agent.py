@@ -125,13 +125,48 @@ WRITING STYLE:
 - Cite sources inline: "According to [Source Name](URL), ..."
 
 OUTPUT FORMAT:
-Provide your analysis as a structured signal with:
+Provide your analysis as a structured JSON signal with:
 - confidence: Your confidence in research quality (0-1, based on source credibility, recency, comprehensiveness)
 - direction: NEUTRAL (research agents don't predict outcomes)
 - fairProbability: 0.5 (research agents don't estimate probabilities)
-- keyDrivers: Your comprehensive research document (NOT raw search results)
-- riskFactors: Information gaps, stale data, conflicting sources, or research limitations
-- metadata: Include source count, search queries used, URLs scraped, information recency
+- keyDrivers: Array of 3-7 concise research findings as plain text strings (NOT markdown, NOT a full document). Each finding should be a single sentence summarizing a key insight with inline source citation.
+- riskFactors: Array of 3-5 specific research limitations as plain text strings (e.g., "Limited recent sources - most articles from >2 weeks ago", "Conflicting reports on X between Source A and Source B", "Information gap: No data found on critical factor Y")
+- metadata: Object with source_count, search_queries_used, urls_scraped, information_recency, research_summary (your comprehensive research document goes here as a single string)
+
+CRITICAL OUTPUT RULES:
+1. YOU MUST OUTPUT ONLY VALID JSON - NO MARKDOWN, NO EXPLANATORY TEXT, NO CODE BLOCKS
+2. keyDrivers MUST be an array of SHORT strings (1-2 sentences each), NOT a full document
+3. riskFactors MUST be an array of SHORT strings describing specific limitations
+4. DO NOT use markdown formatting (no **, no ##, no tables) in keyDrivers or riskFactors arrays
+5. Put your comprehensive research document in metadata.research_summary as a plain text string
+6. Each keyDriver should cite its source inline: "According to Reuters (URL), ..."
+7. Start your response with {{ and end with }} - nothing else before or after
+
+EXAMPLE OUTPUT FORMAT:
+{{
+  "confidence": 0.8,
+  "direction": "NEUTRAL",
+  "fairProbability": 0.5,
+  "keyDrivers": [
+    "According to Reuters (https://...), Supreme Leader Khamenei was killed on Feb 28, 2026, creating unprecedented political vacuum",
+    "US officials express skepticism about regime change per CIA assessment (https://...), citing IRGC's entrenched control",
+    "Institute for War Studies reports (https://...) that no credible IRGC defections have occurred despite strikes"
+  ],
+  "riskFactors": [
+    "Limited information on internal IRGC dynamics - most sources focus on external military actions",
+    "Conflicting reports on protest scale between Iranian state media and Western sources",
+    "Information recency gap: Most detailed analysis from 2-3 days ago, situation evolving rapidly"
+  ],
+  "metadata": {{
+    "source_count": 8,
+    "search_queries_used": ["Iran regime change 2026", "Khamenei death aftermath", "IRGC succession"],
+    "urls_scraped": ["https://reuters.com/...", "https://understandingwar.org/..."],
+    "information_recency": "Most recent: March 2, 2026",
+    "research_summary": "Your comprehensive research document goes here as a single string with all the details, analysis, and synthesis..."
+  }}
+}}
+
+REMEMBER: Output ONLY the JSON object above. Do not add any text before or after the JSON. Do not wrap it in markdown code blocks. Just the raw JSON starting with {{ and ending with }}.
 
 Be thorough and document your research process."""
 
@@ -332,25 +367,56 @@ Please search the web and scrape relevant sources to provide comprehensive conte
         
         # Step 13: Parse agent output as signal (Requirement 5.12)
         try:
+            # Try to extract JSON from the output
+            # First, try direct JSON parse
             signal_data = json.loads(agent_output)
-            # Add required timestamp field if missing
+        except json.JSONDecodeError:
+            # Try to extract JSON from markdown code blocks
+            import re
+            json_match = re.search(r'```(?:json)?\s*(\{[\s\S]*?\})\s*```', agent_output)
+            if json_match:
+                try:
+                    signal_data = json.loads(json_match.group(1))
+                except json.JSONDecodeError:
+                    signal_data = None
+            else:
+                # Try to find JSON object in the text
+                json_match = re.search(r'\{[\s\S]*\}', agent_output)
+                if json_match:
+                    try:
+                        signal_data = json.loads(json_match.group(0))
+                    except json.JSONDecodeError:
+                        signal_data = None
+                else:
+                    signal_data = None
+            
+            # If we still couldn't parse JSON, create fallback signal
+            if signal_data is None:
+                logger.warning(f"[{agent_name}] Failed to parse JSON output, using fallback")
+                signal = AgentSignal(
+                    agent_name=agent_name,
+                    timestamp=int(time.time()),
+                    confidence=0.5,
+                    direction='NEUTRAL',
+                    fair_probability=0.5,
+                    key_drivers=[agent_output[:500] + '...' if len(agent_output) > 500 else agent_output],
+                    risk_factors=[],  # Empty array instead of error message
+                    metadata={'parse_error': True, 'raw_output_length': len(agent_output)},
+                )
+            else:
+                # Successfully extracted JSON
+                if 'timestamp' not in signal_data:
+                    signal_data['timestamp'] = int(time.time())
+                if 'agent_name' not in signal_data:
+                    signal_data['agent_name'] = agent_name
+                signal = AgentSignal(**signal_data)
+        else:
+            # Direct JSON parse succeeded
             if 'timestamp' not in signal_data:
                 signal_data['timestamp'] = int(time.time())
             if 'agent_name' not in signal_data:
                 signal_data['agent_name'] = agent_name
             signal = AgentSignal(**signal_data)
-        except (json.JSONDecodeError, Exception):
-            # If parsing fails, create signal from text output
-            signal = AgentSignal(
-                agent_name=agent_name,
-                timestamp=int(time.time()),
-                confidence=0.7,
-                direction='NEUTRAL',
-                fair_probability=0.5,
-                key_drivers=[agent_output],
-                risk_factors=['Unable to parse structured output'],
-                metadata={'parse_error': True},
-            )
         
         # Step 14: Add tool usage metadata (Requirement 5.13)
         tool_usage = get_tool_usage_summary(tool_audit_log)

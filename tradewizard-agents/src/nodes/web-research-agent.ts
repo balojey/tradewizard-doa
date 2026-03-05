@@ -115,13 +115,48 @@ WRITING STYLE:
 - Cite sources inline: "According to [Source Name](URL), ..."
 
 OUTPUT FORMAT:
-Provide your analysis as a structured signal with:
+Provide your analysis as a structured JSON signal with:
 - confidence: Your confidence in research quality (0-1, based on source credibility, recency, comprehensiveness)
 - direction: NEUTRAL (research agents don't predict outcomes)
 - fairProbability: 0.5 (research agents don't estimate probabilities)
-- keyDrivers: Your comprehensive research document (NOT raw search results)
-- riskFactors: Information gaps, stale data, conflicting sources, or research limitations
-- metadata: Include source count, search queries used, URLs scraped, information recency
+- keyDrivers: Array of 3-7 concise research findings as plain text strings (NOT markdown, NOT a full document). Each finding should be a single sentence summarizing a key insight with inline source citation.
+- riskFactors: Array of 3-5 specific research limitations as plain text strings (e.g., "Limited recent sources - most articles from >2 weeks ago", "Conflicting reports on X between Source A and Source B", "Information gap: No data found on critical factor Y")
+- metadata: Object with sourceCount, searchQueriesUsed, urlsScraped, informationRecency, researchSummary (your comprehensive research document goes here as a single string)
+
+CRITICAL OUTPUT RULES:
+1. YOU MUST OUTPUT ONLY VALID JSON - NO MARKDOWN, NO EXPLANATORY TEXT, NO CODE BLOCKS
+2. keyDrivers MUST be an array of SHORT strings (1-2 sentences each), NOT a full document
+3. riskFactors MUST be an array of SHORT strings describing specific limitations
+4. DO NOT use markdown formatting (no **, no ##, no tables) in keyDrivers or riskFactors arrays
+5. Put your comprehensive research document in metadata.researchSummary as a plain text string
+6. Each keyDriver should cite its source inline: "According to Reuters (URL), ..."
+7. Start your response with { and end with } - nothing else before or after
+
+EXAMPLE OUTPUT FORMAT:
+{
+  "confidence": 0.8,
+  "direction": "NEUTRAL",
+  "fairProbability": 0.5,
+  "keyDrivers": [
+    "According to Reuters (https://...), Supreme Leader Khamenei was killed on Feb 28, 2026, creating unprecedented political vacuum",
+    "US officials express skepticism about regime change per CIA assessment (https://...), citing IRGC's entrenched control",
+    "Institute for War Studies reports (https://...) that no credible IRGC defections have occurred despite strikes"
+  ],
+  "riskFactors": [
+    "Limited information on internal IRGC dynamics - most sources focus on external military actions",
+    "Conflicting reports on protest scale between Iranian state media and Western sources",
+    "Information recency gap: Most detailed analysis from 2-3 days ago, situation evolving rapidly"
+  ],
+  "metadata": {
+    "sourceCount": 8,
+    "searchQueriesUsed": ["Iran regime change 2026", "Khamenei death aftermath", "IRGC succession"],
+    "urlsScraped": ["https://reuters.com/...", "https://understandingwar.org/..."],
+    "informationRecency": "Most recent: March 2, 2026",
+    "researchSummary": "Your comprehensive research document goes here as a single string with all the details, analysis, and synthesis..."
+  }
+}
+
+REMEMBER: Output ONLY the JSON object above. Do not add any text before or after the JSON. Do not wrap it in markdown code blocks. Just the raw JSON starting with { and ending with }.
 
 Be thorough and document your research process.`;
 
@@ -303,20 +338,50 @@ Please search the web and scrape relevant sources to provide comprehensive conte
       // Step 13: Parse agent output as signal (Requirement 5.12)
       let signal: AgentSignal;
       try {
+        // Try direct JSON parse first
         signal = JSON.parse(agentOutput);
       } catch {
-        // If parsing fails, create signal from text output
-        signal = {
-          agentName,
-          confidence: 0.7,
-          direction: 'NEUTRAL',
-          fairProbability: 0.5,
-          keyDrivers: [agentOutput],
-          riskFactors: ['Unable to parse structured output'],
-          metadata: {
-            parseError: true,
-          },
-        };
+        // Try to extract JSON from markdown code blocks or find JSON in text
+        let jsonMatch = agentOutput.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+        if (jsonMatch) {
+          try {
+            signal = JSON.parse(jsonMatch[1]);
+          } catch {
+            jsonMatch = null;
+          }
+        }
+        
+        if (!jsonMatch) {
+          // Try to find JSON object in the text
+          jsonMatch = agentOutput.match(/\{[\s\S]*\}/);
+          if (jsonMatch) {
+            try {
+              signal = JSON.parse(jsonMatch[0]);
+            } catch {
+              jsonMatch = null;
+            }
+          }
+        }
+        
+        // If we still couldn't parse JSON, create fallback signal
+        if (!jsonMatch) {
+          console.warn(`[${agentName}] Failed to parse JSON output, using fallback`);
+          const truncatedOutput = agentOutput.length > 500 
+            ? agentOutput.substring(0, 500) + '...' 
+            : agentOutput;
+          signal = {
+            agentName,
+            confidence: 0.5,
+            direction: 'NEUTRAL',
+            fairProbability: 0.5,
+            keyDrivers: [truncatedOutput],
+            riskFactors: [],  // Empty array instead of error message
+            metadata: {
+              parseError: true,
+              rawOutputLength: agentOutput.length,
+            },
+          };
+        }
       }
 
       // Step 14: Add tool usage metadata (Requirement 5.13)
