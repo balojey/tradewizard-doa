@@ -53,7 +53,7 @@ export default function TabNavigation({
 }: TabNavigationProps) {
   return (
     <div className={cn("border-b border-white/10", className)}>
-      <div className="flex overflow-x-auto no-scrollbar gap-4 sm:gap-6 pb-1">
+      <div className="flex overflow-x-auto no-scrollbar gap-3 sm:gap-6 pb-1 -mx-1 px-1">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -63,7 +63,7 @@ export default function TabNavigation({
               key={tab.id}
               onClick={() => onTabChange(tab.id)}
               className={cn(
-                "group relative flex items-center gap-2 pb-3 sm:pb-4 text-sm font-medium transition-all whitespace-nowrap",
+                "group relative flex items-center gap-2 pb-3 sm:pb-4 text-sm font-medium transition-all whitespace-nowrap flex-shrink-0",
                 isActive ? "text-white" : "text-gray-500 hover:text-gray-300"
               )}
               aria-current={isActive ? "page" : undefined}
@@ -73,17 +73,17 @@ export default function TabNavigation({
               {Icon && (
                 <div
                   className={cn(
-                    "p-1 sm:p-1.5 rounded-lg transition-colors",
+                    "p-1.5 sm:p-1.5 rounded-lg transition-colors",
                     isActive
                       ? "bg-white/10 text-indigo-400"
                       : "bg-transparent group-hover:bg-white/5"
                   )}
                 >
-                  <Icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                  <Icon className="w-4 h-4 sm:w-4 sm:h-4" />
                 </div>
               )}
               
-              <span className="text-xs sm:text-sm">{tab.label}</span>
+              <span className="text-sm sm:text-sm">{tab.label}</span>
               
               {tab.badge && (
                 <span
