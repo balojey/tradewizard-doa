@@ -27,6 +27,44 @@ from models.state import GraphState
 from models.types import AgentSignal
 
 
+def extract_web_research_context(state: GraphState) -> Optional[str]:
+    """
+    Extract comprehensive web research document from state.
+    
+    Searches through agent_signals for the web_research agent's signal
+    and extracts the research_summary from its metadata.
+    
+    Args:
+        state: Current workflow state containing agent_signals
+        
+    Returns:
+        Comprehensive research document string, or None if not available
+    """
+    agent_signals = state.get("agent_signals", [])
+    
+    if not agent_signals:
+        return None
+    
+    # Find web research signal
+    for signal in agent_signals:
+        # Handle both dict and AgentSignal object
+        if isinstance(signal, dict):
+            agent_name = signal.get("agent_name")
+            metadata = signal.get("metadata", {})
+        else:
+            agent_name = getattr(signal, "agent_name", None)
+            metadata = getattr(signal, "metadata", {}) or {}
+        
+        # Check if this is the web research agent
+        if agent_name == "web_research":
+            # Extract research_summary from metadata
+            research_summary = metadata.get("research_summary")
+            if research_summary and isinstance(research_summary, str) and len(research_summary) > 50:
+                return research_summary
+    
+    return None
+
+
 def create_autonomous_agent(
     agent_name: str,
     system_prompt: str,
@@ -185,6 +223,9 @@ def create_autonomous_agent_node(
         Returns:
             State update dict with agent_signals and agent_errors
         """
+        import logging
+        logger = logging.getLogger("TradeWizard")
+        
         start_time = time.time()
         
         # Get MBD from state
@@ -200,31 +241,62 @@ def create_autonomous_agent_node(
                 ).model_dump()]
             }
         
-        # Construct user message with market context
-        user_message = f"""Analyze this prediction market:
-
-Question: {mbd.question}
-Current Probability: {mbd.current_probability:.1%}
-Event Type: {mbd.event_type}
-Resolution Criteria: {mbd.resolution_criteria}
-Expiry: {mbd.expiry_timestamp}
-
-Use the available tools to gather relevant data before making your assessment.
-
-After your analysis, provide your final assessment in JSON format:
-
-```json
-{{
-  "direction": "YES|NO|NEUTRAL",
-  "fair_probability": 0.0-1.0,
-  "confidence": 0.0-1.0,
-  "key_drivers": ["driver1", "driver2", "driver3"],
-  "risk_factors": ["risk1", "risk2", "risk3"]
-}}
-```
-
-IMPORTANT: Your final message MUST include this JSON structure.
-"""
+        # Extract web research context (CRITICAL: Provides comprehensive external research)
+        web_research_context = extract_web_research_context(state)
+        if web_research_context:
+            logger.info(f"Agent {agent_name}: Including web research context ({len(web_research_context)} chars)")
+        else:
+            logger.debug(f"Agent {agent_name}: No web research context available")
+        
+        # Construct user message with market context and web research
+        user_message_parts = [
+            f"Analyze this prediction market:",
+            f"",
+            f"Question: {mbd.question}",
+            f"Current Probability: {mbd.current_probability:.1%}",
+            f"Event Type: {mbd.event_type}",
+            f"Resolution Criteria: {mbd.resolution_criteria}",
+            f"Expiry: {mbd.expiry_timestamp}",
+        ]
+        
+        # Add web research context if available
+        if web_research_context:
+            user_message_parts.extend([
+                f"",
+                f"## Web Research Context",
+                f"",
+                f"The following comprehensive research document was gathered from web sources to provide",
+                f"detailed background, current status, and recent developments related to this market:",
+                f"",
+                f"---",
+                web_research_context,
+                f"---",
+                f"",
+                f"**IMPORTANT**: Use this web research context to inform your analysis. It contains",
+                f"factual information from authoritative sources that should guide your assessment.",
+                f"",
+            ])
+        
+        user_message_parts.extend([
+            f"",
+            f"Use the available tools to gather relevant data before making your assessment.",
+            f"",
+            f"After your analysis, provide your final assessment in JSON format:",
+            f"",
+            f"```json",
+            f"{{",
+            f'  "direction": "YES|NO|NEUTRAL",',
+            f'  "fair_probability": 0.0-1.0,',
+            f'  "confidence": 0.0-1.0,',
+            f'  "key_drivers": ["driver1", "driver2", "driver3"],',
+            f'  "risk_factors": ["risk1", "risk2", "risk3"]',
+            f"}}",
+            f"```",
+            f"",
+            f"IMPORTANT: Your final message MUST include this JSON structure.",
+        ])
+        
+        user_message = "\n".join(user_message_parts)
         
         try:
             # Execute agent with timeout (Requirement 5.6)

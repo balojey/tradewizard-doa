@@ -55,12 +55,51 @@ def format_memory_context(
     return "\n".join(context_lines)
 
 
-def format_market_briefing(mbd: Any) -> str:
+def extract_web_research_context(state: GraphState) -> Optional[str]:
+    """
+    Extract comprehensive web research document from state.
+    
+    Searches through agent_signals for the web_research agent's signal
+    and extracts the research_summary from its metadata.
+    
+    Args:
+        state: Current workflow state containing agent_signals
+        
+    Returns:
+        Comprehensive research document string, or None if not available
+    """
+    agent_signals = state.get("agent_signals", [])
+    
+    if not agent_signals:
+        return None
+    
+    # Find web research signal
+    for signal in agent_signals:
+        # Handle both dict and AgentSignal object
+        if isinstance(signal, dict):
+            agent_name = signal.get("agent_name")
+            metadata = signal.get("metadata", {})
+        else:
+            agent_name = getattr(signal, "agent_name", None)
+            metadata = getattr(signal, "metadata", {}) or {}
+        
+        # Check if this is the web research agent
+        if agent_name == "web_research":
+            # Extract research_summary from metadata
+            research_summary = metadata.get("research_summary")
+            if research_summary and isinstance(research_summary, str) and len(research_summary) > 50:
+                return research_summary
+    
+    return None
+
+
+def format_market_briefing(mbd: Any, web_research_context: Optional[str] = None) -> str:
     """
     Format Market Briefing Document for agent consumption.
     
     Args:
         mbd: MarketBriefingDocument instance
+        web_research_context: Optional comprehensive web research document
         
     Returns:
         Formatted market briefing string
@@ -96,6 +135,19 @@ def format_market_briefing(mbd: Any) -> str:
     if mbd.keywords:
         lines.append(f"\n## Keywords")
         lines.append(f"- {', '.join(mbd.keywords)}")
+    
+    # Add web research context if available (CRITICAL: This provides comprehensive external context)
+    if web_research_context:
+        lines.extend([
+            f"\n## Web Research Context",
+            f"\nThe following comprehensive research document was gathered from web sources to provide",
+            f"detailed background, current status, and recent developments related to this market:",
+            f"\n---\n",
+            web_research_context,
+            f"\n---\n",
+            f"\n**IMPORTANT**: Use this web research context to inform your analysis. It contains",
+            f"factual information from authoritative sources that should guide your assessment.",
+        ])
     
     return "\n".join(lines)
 
@@ -252,8 +304,15 @@ def create_agent_node(
         # Format memory context
         memory_str = format_memory_context(memory_context, agent_name)
         
-        # Format market briefing
-        market_briefing = format_market_briefing(mbd)
+        # Extract web research context (CRITICAL: Provides comprehensive external research)
+        web_research_context = extract_web_research_context(state)
+        if web_research_context:
+            logger.info(f"Agent {agent_name}: Including web research context ({len(web_research_context)} chars)")
+        else:
+            logger.debug(f"Agent {agent_name}: No web research context available")
+        
+        # Format market briefing with web research context
+        market_briefing = format_market_briefing(mbd, web_research_context)
         
         # Enhanced prompt with memory context and explicit instructions (matching TypeScript implementation)
         enhanced_system_prompt = f"""{system_prompt}

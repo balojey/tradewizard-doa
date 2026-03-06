@@ -135,12 +135,14 @@ Provide your analysis as a structured JSON signal with:
 
 CRITICAL OUTPUT RULES:
 1. YOU MUST OUTPUT ONLY VALID JSON - NO MARKDOWN, NO EXPLANATORY TEXT, NO CODE BLOCKS
-2. keyDrivers MUST be an array of SHORT strings (1-2 sentences each), NOT a full document
-3. riskFactors MUST be an array of SHORT strings describing specific limitations
-4. DO NOT use markdown formatting (no **, no ##, no tables) in keyDrivers or riskFactors arrays
-5. Put your comprehensive research document in metadata.research_summary as a plain text string
-6. Each keyDriver should cite its source inline: "According to Reuters (URL), ..."
-7. Start your response with {{ and end with }} - nothing else before or after
+2. DO NOT wrap your JSON in ```json or ``` code blocks
+3. DO NOT add any text before the opening {{ or after the closing }}
+4. keyDrivers MUST be an array of SHORT strings (1-2 sentences each), NOT a full document
+5. riskFactors MUST be an array of SHORT strings describing specific limitations
+6. DO NOT use markdown formatting (no **, no ##, no tables) in keyDrivers or riskFactors arrays
+7. Put your comprehensive research document in metadata.research_summary as a plain text string
+8. Each keyDriver should cite its source inline: "According to Reuters (URL), ..."
+9. Your response must be parseable by JSON.parse() - test it mentally before outputting
 
 EXAMPLE OUTPUT FORMAT:
 {{
@@ -166,7 +168,7 @@ EXAMPLE OUTPUT FORMAT:
   }}
 }}
 
-REMEMBER: Output ONLY the JSON object above. Do not add any text before or after the JSON. Do not wrap it in markdown code blocks. Just the raw JSON starting with {{ and ending with }}.
+REMEMBER: Output ONLY the JSON object above. Your entire response should be valid JSON that starts with {{ and ends with }}. Nothing before, nothing after, no markdown code blocks.
 
 Be thorough and document your research process."""
 
@@ -366,8 +368,10 @@ Please search the web and scrape relevant sources to provide comprehensive conte
         agent_output = final_message.content
         
         # Step 13: Parse agent output as signal (Requirement 5.12)
+        signal_data = None
+        
+        # Try to extract JSON from the output
         try:
-            # Try to extract JSON from the output
             # First, try direct JSON parse
             signal_data = json.loads(agent_output)
         except json.JSONDecodeError:
@@ -378,45 +382,91 @@ Please search the web and scrape relevant sources to provide comprehensive conte
                 try:
                     signal_data = json.loads(json_match.group(1))
                 except json.JSONDecodeError:
-                    signal_data = None
-            else:
-                # Try to find JSON object in the text
+                    pass
+            
+            # Try to find JSON object in the text (look for keyDrivers field as anchor)
+            if not signal_data:
+                json_match = re.search(r'\{[^{}]*"keyDrivers"[^{}]*\}', agent_output, re.DOTALL | re.IGNORECASE)
+                if json_match:
+                    try:
+                        signal_data = json.loads(json_match.group(0))
+                    except json.JSONDecodeError:
+                        pass
+            
+            # Try broader JSON extraction
+            if not signal_data:
                 json_match = re.search(r'\{[\s\S]*\}', agent_output)
                 if json_match:
                     try:
                         signal_data = json.loads(json_match.group(0))
                     except json.JSONDecodeError:
-                        signal_data = None
-                else:
-                    signal_data = None
-            
-            # If we still couldn't parse JSON, create fallback signal
-            if signal_data is None:
-                logger.warning(f"[{agent_name}] Failed to parse JSON output, using fallback")
-                signal = AgentSignal(
-                    agent_name=agent_name,
-                    timestamp=int(time.time()),
-                    confidence=0.5,
-                    direction='NEUTRAL',
-                    fair_probability=0.5,
-                    key_drivers=[agent_output[:500] + '...' if len(agent_output) > 500 else agent_output],
-                    risk_factors=[],  # Empty array instead of error message
-                    metadata={'parse_error': True, 'raw_output_length': len(agent_output)},
-                )
-            else:
-                # Successfully extracted JSON
-                if 'timestamp' not in signal_data:
-                    signal_data['timestamp'] = int(time.time())
-                if 'agent_name' not in signal_data:
-                    signal_data['agent_name'] = agent_name
-                signal = AgentSignal(**signal_data)
-        else:
-            # Direct JSON parse succeeded
+                        pass
+        
+        # If we successfully parsed JSON, create signal from it
+        if signal_data:
             if 'timestamp' not in signal_data:
                 signal_data['timestamp'] = int(time.time())
             if 'agent_name' not in signal_data:
                 signal_data['agent_name'] = agent_name
+            
+            # Handle camelCase to snake_case conversion if needed
+            if 'keyDrivers' in signal_data and 'key_drivers' not in signal_data:
+                signal_data['key_drivers'] = signal_data.pop('keyDrivers')
+            if 'riskFactors' in signal_data and 'risk_factors' not in signal_data:
+                signal_data['risk_factors'] = signal_data.pop('riskFactors')
+            if 'fairProbability' in signal_data and 'fair_probability' not in signal_data:
+                signal_data['fair_probability'] = signal_data.pop('fairProbability')
+            
             signal = AgentSignal(**signal_data)
+        else:
+            # Fallback: Extract information from raw text
+            logger.warning(f"[{agent_name}] Failed to parse JSON output, extracting from raw text")
+            
+            # Try to extract key findings from the text
+            key_drivers = []
+            lines = agent_output.split('\n')
+            for line in lines:
+                line = line.strip()
+                # Look for lines that seem like findings (contain URLs or start with bullets/numbers)
+                if line and (
+                    'http' in line or 
+                    line.startswith('-') or 
+                    line.startswith('*') or 
+                    line.startswith('•') or
+                    (len(line) > 2 and line[0].isdigit() and line[1] in '.)')
+                ):
+                    # Clean up markdown formatting
+                    clean_line = line.lstrip('-*•0123456789.) ').strip()
+                    if len(clean_line) > 20:  # Only include substantial findings
+                        key_drivers.append(clean_line)
+                        if len(key_drivers) >= 5:  # Limit to 5 findings
+                            break
+            
+            # If we didn't find structured findings, split the output into chunks
+            if not key_drivers:
+                # Split into sentences and take first few
+                import re
+                sentences = re.split(r'[.!?]+\s+', agent_output)
+                key_drivers = [s.strip() for s in sentences[:3] if len(s.strip()) > 20]
+            
+            # If still empty, use truncated output as last resort
+            if not key_drivers:
+                key_drivers = [agent_output[:500] + '...' if len(agent_output) > 500 else agent_output]
+            
+            signal = AgentSignal(
+                agent_name=agent_name,
+                timestamp=int(time.time()),
+                confidence=0.5,
+                direction='NEUTRAL',
+                fair_probability=0.5,
+                key_drivers=key_drivers,
+                risk_factors=['Failed to parse structured output - information may be incomplete'],
+                metadata={
+                    'parse_error': True, 
+                    'research_summary_length': len(agent_output),
+                    'research_summary': agent_output
+                },
+            )
         
         # Step 14: Add tool usage metadata (Requirement 5.13)
         tool_usage = get_tool_usage_summary(tool_audit_log)
