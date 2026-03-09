@@ -19,6 +19,14 @@ tradewizard/
 ```
 tradewizard-agents/
 ├── src/
+│   ├── __tests__/          # Centralized test directory
+│   │   ├── config/         # Config tests
+│   │   ├── database/       # Database tests
+│   │   ├── models/         # Model tests
+│   │   ├── nodes/          # Node tests
+│   │   ├── tools/          # Tool tests
+│   │   ├── utils/          # Utility tests
+│   │   └── *.test.ts       # Root-level tests (workflow, cli, monitor)
 │   ├── nodes/              # LangGraph workflow nodes
 │   │   ├── market-ingestion.ts
 │   │   ├── memory-retrieval.ts
@@ -182,9 +190,12 @@ tradewizard-frontend/
 ## Test File Locations
 
 ### Backend (tradewizard-agents)
-- Co-located with source: `src/nodes/market-ingestion.test.ts`
+- Centralized in `src/__tests__/` directory
+- Structure mirrors source layout: `src/__tests__/nodes/`, `src/__tests__/utils/`, etc.
 - Property tests: `*.property.test.ts`
 - Integration tests: `*.integration.test.ts`
+- E2E tests: `*.e2e.test.ts`
+- Performance tests: `*.performance.test.ts`
 
 ### Python (doa)
 - Co-located with source: `agents/test_agent_factory.py`
