@@ -78,6 +78,13 @@ tradewizard-agents/
 
 ```
 doa/
+├── tests/                  # Centralized test directory
+│   ├── agents/             # Agent tests
+│   ├── database/           # Database tests
+│   ├── nodes/              # Node tests
+│   ├── tools/              # Tool tests
+│   ├── utils/              # Utility tests
+│   └── test_*.py           # Root-level tests (config, imports, integration)
 ├── agents/                 # Intelligence agent implementations
 │   ├── agent_factory.py
 │   ├── autonomous_agent_factory.py
@@ -198,8 +205,11 @@ tradewizard-frontend/
 - Performance tests: `*.performance.test.ts`
 
 ### Python (doa)
-- Co-located with source: `agents/test_agent_factory.py`
+- Centralized in `tests/` directory
+- Structure mirrors source layout: `tests/agents/`, `tests/nodes/`, etc.
 - Test prefix: `test_*.py`
+- Property tests: `test_*_property.py`
+- Integration tests: `test_*_integration.py`
 
 ## Configuration Files Location
 
