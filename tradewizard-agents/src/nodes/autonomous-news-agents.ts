@@ -496,9 +496,15 @@ function createAutonomousNewsAgentNode(
 
       // Step 7: Prepare agent input with market data and keywords (Requirement 6.3, 7.3, 8.3)
       // Import formatting utilities for human-readable timestamps (Requirements 6.1, 6.2, 8.3)
-      const { formatMarketBriefingForAgent, formatExternalDataForAgent } = await import('../utils/agent-context-formatter.js');
+      const { formatMarketBriefingForAgent, formatExternalDataForAgent, extractWebResearchContext } = await import('../utils/agent-context-formatter.js');
       
-      const marketContext = formatMarketBriefingForAgent(state.mbd);
+      // Extract web research context (CRITICAL: Provides comprehensive external research)
+      const webResearchContext = extractWebResearchContext(state.agentSignals);
+      if (webResearchContext) {
+        console.log(`[${agentName}] Including web research context (${webResearchContext.length} chars)`);
+      }
+      
+      const marketContext = formatMarketBriefingForAgent(state.mbd, webResearchContext);
       const externalDataContext = state.externalData 
         ? formatExternalDataForAgent(state.externalData)
         : '';
