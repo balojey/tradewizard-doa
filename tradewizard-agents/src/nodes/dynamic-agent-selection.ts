@@ -332,8 +332,10 @@ async function filterByDataAvailability(
       }
     }
 
-    // Polling agents require polling data
-    if (agent === 'polling_intelligence') {
+    // Polling intelligence agent is autonomous and fetches its own data
+    // No longer filtered by external polling data availability
+    // (kept for historical_pattern which may still need pre-fetched data)
+    if (agent === 'historical_pattern') {
       if (!pollingAvailable) {
         shouldInclude = false;
       }

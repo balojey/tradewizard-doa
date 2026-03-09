@@ -495,6 +495,7 @@ async def analyze_market(
     logger.info(f"Condition ID: {condition_id}")
     logger.info(f"Thread ID: {thread_id}")
     logger.info(f"Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"LangGraph Recursion Limit: {config.langgraph.recursion_limit}")
     
     try:
         # Build workflow graph
@@ -547,15 +548,19 @@ async def analyze_market(
         }
         
         # Create config for graph invocation with thread_id and recursion_limit
+        # Note: recursion_limit must be at top level of config dict
         graph_config = {
             "configurable": {"thread_id": thread_id},
             "recursion_limit": config.langgraph.recursion_limit
         }
         
+        logger.info(f"Graph config: recursion_limit={config.langgraph.recursion_limit}, thread_id={thread_id}")
+        
         # Invoke graph (Opik tracking is already wrapped around the graph)
         logger.info("Starting workflow execution...")
+        logger.info(f"Invoking graph with config: {graph_config}")
         
-        final_state = await graph.ainvoke(initial_state, graph_config)
+        final_state = await graph.ainvoke(initial_state, config=graph_config)
         
         duration_s = time.time() - start_time
         

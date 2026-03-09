@@ -194,14 +194,17 @@ class TestFilterByDataAvailability:
         mbd = Mock(spec=MarketBriefingDocument)
         mbd.volume_24h = 10000
         
-        agents = ['breaking_news', 'event_impact', 'polling_intelligence']
+        agents = ['breaking_news', 'event_impact', 'polling_intelligence', 'historical_pattern']
         filtered = filter_by_data_availability(
             agents, mbd, news_available=True, polling_available=False
         )
         
         assert 'breaking_news' in filtered
         assert 'event_impact' in filtered
-        assert 'polling_intelligence' not in filtered
+        # polling_intelligence is autonomous and should be included even without polling data
+        assert 'polling_intelligence' in filtered
+        # historical_pattern requires pre-fetched polling data
+        assert 'historical_pattern' not in filtered
     
     def test_news_unavailable(self):
         """When news is unavailable, event intelligence agents should be filtered."""

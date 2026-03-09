@@ -402,7 +402,7 @@ describe('Dynamic Agent Selection Node', () => {
       expect(result.activeAgents).not.toContain('event_impact');
     });
 
-    it('should exclude polling agents when polling data unavailable', async () => {
+    it('should exclude historical_pattern when polling data unavailable', async () => {
       const mbd = createMockMBD({ eventType: 'election' });
       const state = createMockState(mbd);
       const config = createMockConfig();
@@ -410,7 +410,10 @@ describe('Dynamic Agent Selection Node', () => {
 
       const result = await dynamicAgentSelectionNode(state, config, dataLayer);
 
-      expect(result.activeAgents).not.toContain('polling_intelligence');
+      // polling_intelligence is autonomous and should still be included
+      expect(result.activeAgents).toContain('polling_intelligence');
+      // historical_pattern requires pre-fetched polling data
+      expect(result.activeAgents).not.toContain('historical_pattern');
     });
 
     it('should exclude sentiment agents when both news and social data unavailable', async () => {
