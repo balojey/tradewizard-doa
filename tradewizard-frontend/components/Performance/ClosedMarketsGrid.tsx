@@ -110,7 +110,7 @@ export default function ClosedMarketsGrid({
       <div className="grid grid-cols-1 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
         {markets.map((market) => (
           <ClosedMarketCard
-            key={`${market.market_id}-${market.recommendation_id}`}
+            key={market.market_id}
             market={market}
             onMarketClick={onMarketClick}
           />
@@ -188,7 +188,7 @@ interface ClosedMarketCardProps {
  * 
  * Features:
  * - Hover effects with gradient overlay
- * - Prefetches market performance data on hover
+ * - Prefetches market details from Polymarket on hover
  * - Error boundary for graceful failure handling
  * - Touch-friendly with proper sizing
  * - Responsive layout
@@ -200,8 +200,10 @@ function ClosedMarketCard({ market, onMarketClick }: ClosedMarketCardProps) {
   const queryClient = useQueryClient();
   const hasRecommendations = !!market.recommendation_id;
   const isWin = market.recommendation_was_correct;
-  // Use slug if available, otherwise fall back to market_id
+  
+  // Use Polymarket slug if available, otherwise fall back to market_id
   const marketSlug = market.slug || market.market_id;
+  const hasValidSlug = !!market.slug;
 
   const handleClick = () => {
     if (onMarketClick) {
@@ -210,10 +212,44 @@ function ClosedMarketCard({ market, onMarketClick }: ClosedMarketCardProps) {
   };
 
   /**
-   * Prefetch market performance data on hover
-   * This improves perceived performance by loading data before navigation
+   * Prefetch market data on hover
+   * - If we have a valid Polymarket slug, prefetch market details
+   * - Also prefetch performance data if recommendations exist
    */
   const handleMouseEnter = () => {
+    // Prefetch market details from Polymarket if we have a slug
+    if (hasValidSlug) {
+      queryClient.prefetchQuery({
+        queryKey: ["market-by-slug", market.slug],
+        queryFn: async () => {
+          const response = await fetch(
+            `/api/polymarket/market-by-slug?slug=${market.slug}`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to prefetch market details");
+          }
+          return response.json();
+        },
+        staleTime: 10 * 60 * 1000, // 10 minutes
+      });
+    } else if (market.condition_id) {
+      // Fallback: prefetch using condition_id
+      queryClient.prefetchQuery({
+        queryKey: ["market-by-condition", market.condition_id],
+        queryFn: async () => {
+          const response = await fetch(
+            `/api/polymarket/market-by-condition?conditionId=${market.condition_id}`
+          );
+          if (!response.ok) {
+            throw new Error("Failed to prefetch market details");
+          }
+          return response.json();
+        },
+        staleTime: 10 * 60 * 1000, // 10 minutes
+      });
+    }
+
+    // Prefetch performance data if recommendations exist
     if (hasRecommendations) {
       queryClient.prefetchQuery({
         queryKey: ["market-performance", market.market_id],

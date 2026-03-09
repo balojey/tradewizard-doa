@@ -288,11 +288,11 @@ export default function PerformanceTab({
                 <div className="text-right">
                   <div
                     className={`text-lg font-bold ${
-                      rec.roiRealized >= 0 ? "text-emerald-400" : "text-red-400"
+                      (rec.roiRealized ?? 0) >= 0 ? "text-emerald-400" : "text-red-400"
                     }`}
                   >
-                    {rec.roiRealized >= 0 ? "+" : ""}
-                    {rec.roiRealized.toFixed(2)}%
+                    {(rec.roiRealized ?? 0) >= 0 ? "+" : ""}
+                    {rec.roiRealized != null ? rec.roiRealized.toFixed(2) : "0.00"}%
                   </div>
                   <div className="text-xs text-gray-500">ROI</div>
                 </div>
@@ -304,25 +304,33 @@ export default function PerformanceTab({
                 <div>
                   <div className="text-xs text-gray-500">Entry Zone</div>
                   <div className="text-sm text-white font-mono">
-                    {rec.entryZoneMin.toFixed(2)} - {rec.entryZoneMax.toFixed(2)}
+                    {rec.entryZoneMin != null && rec.entryZoneMax != null
+                      ? `${rec.entryZoneMin.toFixed(2)} - ${rec.entryZoneMax.toFixed(2)}`
+                      : "N/A"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Market Price</div>
                   <div className="text-sm text-white font-mono">
-                    {rec.marketPriceAtRecommendation.toFixed(2)}
+                    {rec.marketPriceAtRecommendation != null 
+                      ? rec.marketPriceAtRecommendation.toFixed(2)
+                      : "N/A"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Fair Probability</div>
                   <div className="text-sm text-white font-mono">
-                    {(rec.fairProbability * 100).toFixed(1)}%
+                    {rec.fairProbability != null
+                      ? `${(rec.fairProbability * 100).toFixed(1)}%`
+                      : "N/A"}
                   </div>
                 </div>
                 <div>
                   <div className="text-xs text-gray-500">Market Edge</div>
                   <div className="text-sm text-white font-mono">
-                    {(rec.marketEdge * 100).toFixed(1)}%
+                    {rec.marketEdge != null
+                      ? `${(rec.marketEdge * 100).toFixed(1)}%`
+                      : "N/A"}
                   </div>
                 </div>
               </div>
@@ -357,7 +365,9 @@ export default function PerformanceTab({
                     {signal.direction}
                   </span>
                   <span className="text-xs text-gray-400">
-                    {(signal.agent_probability * 100).toFixed(1)}%
+                    {signal.agent_probability != null
+                      ? `${(signal.agent_probability * 100).toFixed(1)}%`
+                      : "N/A"}
                   </span>
                 </div>
               </div>

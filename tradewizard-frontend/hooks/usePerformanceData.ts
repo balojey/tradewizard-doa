@@ -25,7 +25,13 @@ export interface ClosedMarketPerformance {
   days_to_resolution: number;
   total_agents: number;
   agents_in_agreement: number;
-  slug?: string; // Optional slug for navigation, added by API when includeSlug=true
+  // Polymarket details fetched from CLOB API
+  slug?: string; // Polymarket market slug for navigation
+  polymarket_question?: string; // Question from Polymarket (may differ from DB)
+  outcomes?: string[]; // Market outcomes (e.g., ["Yes", "No"])
+  clob_token_ids?: string[]; // CLOB token IDs for trading
+  end_date?: string; // Market end date
+  image?: string; // Market image URL
 }
 
 export interface PerformanceSummary {

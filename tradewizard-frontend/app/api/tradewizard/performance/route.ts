@@ -1,17 +1,68 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { CLOB_API_URL } from "@/constants/api";
 
-function generateMarketSlug(question: string, marketId: string): string {
-  // Convert question to URL-friendly slug
-  const slug = question
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .substring(0, 60); // Limit length
-  
-  // Add market ID suffix for uniqueness
-  const idSuffix = marketId.substring(0, 8);
-  return `${slug}-${idSuffix}`;
+/**
+ * Fetch market details from Polymarket CLOB API using condition_id
+ */
+async function fetchMarketDetailsByConditionId(conditionId: string): Promise<any | null> {
+  try {
+    const response = await fetch(
+      `${CLOB_API_URL}/markets/${conditionId}`,
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        next: { revalidate: 300 }, // Cache for 5 minutes
+      }
+    );
+
+    if (!response.ok) {
+      console.warn(`Failed to fetch market details for condition ${conditionId}: ${response.status}`);
+      return null;
+    }
+
+    const market = await response.json();
+    return market;
+  } catch (error) {
+    console.warn(`Error fetching market details for condition ${conditionId}:`, error);
+    return null;
+  }
+}
+
+/**
+ * Enrich closed markets with Polymarket details (slug, etc.)
+ * Fetches market details from CLOB API for each market using condition_id
+ */
+async function enrichMarketsWithPolymarketDetails(markets: any[]): Promise<any[]> {
+  const enrichedMarkets = await Promise.all(
+    markets.map(async (market) => {
+      if (!market.condition_id) {
+        console.warn(`Market ${market.market_id} missing condition_id`);
+        return market;
+      }
+
+      const polymarketDetails = await fetchMarketDetailsByConditionId(market.condition_id);
+      
+      if (polymarketDetails) {
+        return {
+          ...market,
+          slug: polymarketDetails.market_slug || polymarketDetails.slug,
+          polymarket_question: polymarketDetails.question,
+          outcomes: polymarketDetails.outcomes,
+          clob_token_ids: polymarketDetails.clob_token_ids,
+          end_date: polymarketDetails.end_date_iso,
+          image: polymarketDetails.image,
+        };
+      }
+
+      // Fallback: if CLOB API fails, return market without enrichment
+      console.warn(`Could not enrich market ${market.market_id} with Polymarket details`);
+      return market;
+    })
+  );
+
+  return enrichedMarkets;
 }
 
 export async function GET(request: NextRequest) {
@@ -21,7 +72,6 @@ export async function GET(request: NextRequest) {
   const confidence = searchParams.get("confidence") || "all";
   const limit = parseInt(searchParams.get("limit") || "20");
   const offset = parseInt(searchParams.get("offset") || "0");
-  const includeSlug = searchParams.get("includeSlug") === "true";
 
   try {
     // Ensure recommendation outcomes are calculated for all resolved markets
@@ -97,15 +147,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Add slug to markets if requested (for navigation)
-    let marketsWithSlug = closedMarkets || [];
-    if (includeSlug && marketsWithSlug.length > 0) {
-      marketsWithSlug = marketsWithSlug.map(market => ({
-        ...market,
-        slug: market.question && market.market_id 
-          ? generateMarketSlug(market.question, market.market_id)
-          : `market-${market.market_id || 'unknown'}`,
-      }));
+    // Enrich markets with Polymarket details (slug, etc.) from CLOB API
+    let enrichedMarkets = closedMarkets || [];
+    if (enrichedMarkets.length > 0) {
+      console.log(`Enriching ${enrichedMarkets.length} markets with Polymarket details...`);
+      enrichedMarkets = await enrichMarketsWithPolymarketDetails(enrichedMarkets);
     }
 
     // Fetch performance summary
@@ -160,10 +206,10 @@ export async function GET(request: NextRequest) {
     }
 
     // Calculate additional metrics from the closed markets data
-    const metrics = calculatePerformanceMetrics(marketsWithSlug);
+    const metrics = calculatePerformanceMetrics(enrichedMarkets);
 
     return NextResponse.json({
-      closedMarkets: marketsWithSlug,
+      closedMarkets: enrichedMarkets,
       summary: performanceSummary || null,
       performanceByConfidence: performanceByConfidence || [],
       performanceByAgent: performanceByAgent || [],
