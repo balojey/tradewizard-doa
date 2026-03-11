@@ -117,6 +117,39 @@ def calculate_entry_zone(
     return (min_entry, max_entry)
 
 
+def calculate_stop_loss(
+    entry_zone: Tuple[float, float],
+    liquidity_score: float
+) -> float:
+    """
+    Calculate stop-loss price (below entry zone for risk management).
+    
+    Args:
+        entry_zone: Entry price range
+        liquidity_score: Market liquidity score (0-10)
+        
+    Returns:
+        Stop-loss price below entry zone minimum
+    """
+    entry_min = entry_zone[0]
+    
+    # Base stop-loss: 3% below entry minimum
+    base_distance = 0.03
+    
+    # Adjust for liquidity (lower liquidity = tighter stop-loss to limit slippage)
+    if liquidity_score < 4.0:
+        stop_loss_distance = 0.025  # 2.5% for low liquidity
+    elif liquidity_score < 7.0:
+        stop_loss_distance = 0.03  # 3% for medium liquidity
+    else:
+        stop_loss_distance = 0.035  # 3.5% for high liquidity
+    
+    stop_loss = entry_min - stop_loss_distance
+    
+    # Bound to [0.01, entry minimum)
+    return max(0.01, min(entry_min - 0.01, stop_loss))
+
+
 def calculate_target_zone(
     action: str,
     consensus_probability: float,
@@ -626,6 +659,12 @@ async def recommendation_generation_node(
             consensus.disagreement_index
         )
         
+        # Step 4.5: Calculate stop-loss price
+        stop_loss = calculate_stop_loss(
+            entry_zone,
+            mbd.liquidity_score
+        )
+        
         # Step 5: Calculate time to resolution
         current_time = int(time.time())
         time_to_resolution_seconds = mbd.expiry_timestamp - current_time
@@ -685,6 +724,7 @@ async def recommendation_generation_node(
             action=action,
             entry_zone=entry_zone,
             target_zone=target_zone,
+            stop_loss=stop_loss,
             expected_value=expected_value,
             win_probability=win_probability,
             liquidity_risk=liquidity_risk,

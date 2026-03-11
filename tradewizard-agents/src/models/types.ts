@@ -724,6 +724,7 @@ export interface TradeRecommendation {
   action: TradeAction;
   entryZone: [number, number]; // [min, max] price
   targetZone: [number, number];
+  stopLoss: number; // Stop-loss price below entry zone for risk management
   expectedValue: number; // In dollars per $100 invested
   winProbability: number;
   liquidityRisk: LiquidityRisk;

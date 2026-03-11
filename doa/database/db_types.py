@@ -53,6 +53,7 @@ class RecommendationRow(BaseModel):
     entry_zone_max: Optional[float] = None
     target_zone_min: Optional[float] = None
     target_zone_max: Optional[float] = None
+    stop_loss: Optional[float] = None
     explanation: Optional[str] = None
     core_thesis: Optional[str] = None
     catalysts: Optional[Json] = None
@@ -169,6 +170,7 @@ class RecommendationInsert(BaseModel):
     entry_zone_max: Optional[float] = None
     target_zone_min: Optional[float] = None
     target_zone_max: Optional[float] = None
+    stop_loss: Optional[float] = None
     explanation: Optional[str] = None
     core_thesis: Optional[str] = None
     catalysts: Optional[Json] = None
@@ -250,6 +252,7 @@ class RecommendationUpdate(BaseModel):
     entry_zone_max: Optional[float] = None
     target_zone_min: Optional[float] = None
     target_zone_max: Optional[float] = None
+    stop_loss: Optional[float] = None
     explanation: Optional[str] = None
     core_thesis: Optional[str] = None
     catalysts: Optional[Json] = None

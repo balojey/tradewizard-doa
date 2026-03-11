@@ -132,6 +132,7 @@ class TradeRecommendation(BaseModel):
     action: Literal["LONG_YES", "LONG_NO", "NO_TRADE"]
     entry_zone: Tuple[float, float]  # [min, max] price
     target_zone: Tuple[float, float]
+    stop_loss: float  # Stop-loss price below entry zone for risk management
     expected_value: float  # Dollars per $100 invested
     win_probability: float = Field(ge=0.0, le=1.0)
     liquidity_risk: Literal["low", "medium", "high"]

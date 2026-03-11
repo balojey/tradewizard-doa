@@ -12,6 +12,7 @@ export interface TradeRecommendation {
   action: 'LONG_YES' | 'LONG_NO' | 'NO_TRADE';
   entryZone: [number, number];
   targetZone: [number, number];
+  stopLoss: number; // Stop-loss price below entry zone for risk management
   expectedValue: number;
   winProbability: number;
   liquidityRisk: 'low' | 'medium' | 'high';
@@ -138,6 +139,7 @@ function transformRecommendation(
     action,
     entryZone: [rec.entry_zone_min || 0, rec.entry_zone_max || 1],
     targetZone: [rec.target_zone_min || 0, rec.target_zone_max || 1],
+    stopLoss: rec.stop_loss || Math.max(0.01, (rec.entry_zone_min || 0) - 0.03), // Fallback calculation
     expectedValue: rec.expected_value || 0,
     winProbability,
     liquidityRisk,
