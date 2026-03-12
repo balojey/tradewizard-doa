@@ -218,6 +218,15 @@ tools based on market characteristics (volume, volatility, related markets).
             create_detect_sentiment_shifts_tool(tool_context)
         ]
         
+        # DEBUG: Log tool information
+        import logging
+        logger = logging.getLogger("TradeWizard")
+        logger.info(f"[{AGENT_NAME}] Created {len(tools)} tools:")
+        for tool in tools:
+            logger.info(f"  - {tool.name}: {tool.description[:80]}...")
+            logger.info(f"    Tool type: {type(tool)}")
+            logger.info(f"    Has coroutine: {hasattr(tool, 'coroutine')}")
+        
         # Get max tool calls from config (Requirement 8.3)
         max_tool_calls = 5  # Default as per requirements
         if hasattr(config, 'autonomous_agents') and hasattr(config.autonomous_agents, 'max_tool_calls'):

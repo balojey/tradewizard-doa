@@ -519,9 +519,12 @@ def create_fetch_related_markets_tool(context: ToolContext) -> StructuredTool:
         params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
         
         # Execute with wrapper
+        async def tool_func(**p):
+            return await fetch_related_markets(**p)
+        
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_related_markets",
-            tool_func=lambda **p: fetch_related_markets(**p),
+            tool_func=tool_func,
             params=params_with_client,
             context=context
         )
@@ -570,9 +573,12 @@ def create_fetch_historical_prices_tool(context: ToolContext) -> StructuredTool:
         params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
         
         # Execute with wrapper
+        async def tool_func(**p):
+            return await fetch_historical_prices(**p)
+        
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_historical_prices",
-            tool_func=lambda **p: fetch_historical_prices(**p),
+            tool_func=tool_func,
             params=params_with_client,
             context=context
         )
@@ -620,9 +626,12 @@ def create_fetch_cross_market_data_tool(context: ToolContext) -> StructuredTool:
         params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
         
         # Execute with wrapper
+        async def tool_func(**p):
+            return await fetch_cross_market_data(**p)
+        
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_cross_market_data",
-            tool_func=lambda **p: fetch_cross_market_data(**p),
+            tool_func=tool_func,
             params=params_with_client,
             context=context
         )
@@ -671,9 +680,12 @@ def create_analyze_market_momentum_tool(context: ToolContext) -> StructuredTool:
         params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
         
         # Execute with wrapper
+        async def tool_func(**p):
+            return await analyze_market_momentum(**p)
+        
         execution_result = await execute_tool_with_wrapper(
             tool_name="analyze_market_momentum",
-            tool_func=lambda **p: analyze_market_momentum(**p),
+            tool_func=tool_func,
             params=params_with_client,
             context=context
         )
@@ -722,9 +734,12 @@ def create_detect_sentiment_shifts_tool(context: ToolContext) -> StructuredTool:
         params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
         
         # Execute with wrapper
+        async def tool_func(**p):
+            return await detect_sentiment_shifts(**p)
+        
         execution_result = await execute_tool_with_wrapper(
             tool_name="detect_sentiment_shifts",
-            tool_func=lambda **p: detect_sentiment_shifts(**p),
+            tool_func=tool_func,
             params=params_with_client,
             context=context
         )
