@@ -1,3 +1,7 @@
+---
+inclusion: always
+---
+
 # Project Structure
 
 ## Repository Layout
@@ -161,26 +165,31 @@ tradewizard-frontend/
 - All workflow nodes share a common `GraphState` object
 - State flows through nodes sequentially or in parallel
 - Checkpointers enable persistence and resumability
+- **When modifying**: Update state.ts, then propagate changes through affected nodes
 
 ### Agent Autonomy
 - Agents use LangChain tool-calling (ReAct pattern)
 - Tools are bound to agent LLMs at runtime
 - Agents autonomously decide which tools to call
+- **When adding agents**: Follow agent factory pattern in agents/ directory, implement tool-calling interface
 
 ### Memory System
 - Historical agent signals stored in database
 - Retrieved before each analysis for context
 - Enables closed-loop learning and consistency
+- **When debugging**: Check memory_retrieval.ts for context loading issues
 
 ### Error Handling
 - Graceful degradation at every layer
 - Partial failures don't crash the pipeline
 - Comprehensive audit logging for debugging
+- **When adding features**: Include error handling and audit logging from the start
 
 ### Multi-Provider LLM Support
 - Abstract LLM factory pattern
 - Different agents can use different providers
 - Single-provider mode for cost optimization
+- **When integrating new LLM**: Update config.py (Python) or config/index.ts (Node.js)
 
 ## File Naming Conventions
 
@@ -217,3 +226,42 @@ tradewizard-frontend/
 - `.env.example` templates for documentation
 - `.env.production` for production overrides
 - `.kiro/settings/` for AI assistant configuration
+
+## Common Development Tasks
+
+### Adding a New Agent (Node.js)
+1. Create `src/agents/agent-name.ts` following existing agent patterns
+2. Implement tool-calling interface with LangChain
+3. Register in agent factory if needed
+4. Add tests in `src/__tests__/agents/agent-name.test.ts`
+5. Integrate into workflow nodes as needed
+
+### Adding a New Workflow Node (Node.js)
+1. Create `src/nodes/node-name.ts` implementing LangGraph node interface
+2. Update `src/models/state.ts` if adding new state fields
+3. Integrate into `src/workflow.ts` graph definition
+4. Add tests in `src/__tests__/nodes/node-name.test.ts`
+
+### Adding a New Tool (Node.js)
+1. Create `src/tools/category/tool-name.ts` wrapping external API
+2. Implement LangChain tool interface with proper error handling
+3. Add audit logging for all API calls
+4. Add tests in `src/__tests__/tools/category/tool-name.test.ts`
+
+### Adding a New Agent (Python)
+1. Create `agents/agent_name.py` following existing agent patterns
+2. Implement agent factory registration
+3. Add tests in `tests/agents/test_agent_name.py`
+4. Update prompts.py if adding new prompts
+
+### Database Migrations
+- Node.js: Use `src/database/migrate.ts` pattern
+- Python: Add SQL files to `doa/database/migrations/` with sequential numbering
+- Always test migrations in both directions (up/down)
+
+### Testing Strategy
+- **Unit tests**: Test individual functions/methods in isolation
+- **Integration tests**: Test component interactions (e.g., agent + tools)
+- **Property-based tests**: Use fast-check (Node.js) or Hypothesis (Python) for correctness properties
+- **E2E tests**: Test full workflow with real or mocked external APIs
+- All LLM-dependent tests must complete within 30 seconds

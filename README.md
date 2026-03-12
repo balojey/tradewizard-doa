@@ -2,206 +2,115 @@
 
 > AI-powered prediction trading platform providing intelligent analysis and trading recommendations for real-world outcomes on Polymarket.
 
-## Overview
-
 TradeWizard transforms prediction markets from speculative guessing into guided, intelligence-driven trading. Our multi-agent AI system analyzes markets from multiple perspectives to provide explainable trade recommendations with clear reasoning, catalysts, and risk scenarios.
 
-## Architecture
+## Quick Links
+
+- **[DOA Workflow Service](doa/README.md)** - Python LangGraph service
+- **[TradeWizard Agents](tradewizard-agents/README.md)** - Node.js monitor & CLI
+- **[Frontend](tradewizard-frontend/README.md)** - Next.js web app
+- **[Product Docs](docs/)** - Architecture and design specifications
+
+## System Architecture
 
 ```
-├── doa/                    # Python workflow service (LangGraph + Digital Ocean Gradient AI)
-├── tradewizard-agents/     # Node.js backend with CLI and monitoring service
-├── tradewizard-frontend/   # Web application (Next.js + React)
+tradewizard/
+├── doa/                    # Python workflow service (LangGraph + Llama)
+├── tradewizard-agents/     # Node.js monitor & CLI
+├── tradewizard-frontend/   # Next.js web application
 ├── docs/                   # Product and technical documentation
-└── .kiro/                  # AI assistant configuration and specs
+└── .kiro/                  # AI assistant configuration
 ```
 
-### System Components
+### Components
 
-**🐍 DOA Workflow Service (doa/)**
-- **Purpose**: Executes market analysis workflows using Python + LangGraph
-- **LLM Provider**: Digital Ocean's Gradient AI Platform (cost-effective Llama models)
-- **Deployment**: Standalone HTTP service for workflow execution
-- **Usage**: Called by tradewizard-agents monitor service for analysis
+| Component | Purpose | Tech Stack |
+|-----------|---------|-----------|
+| **doa/** | Executes market analysis workflows | Python 3.10+, LangGraph, Digital Ocean Gradient AI |
+| **tradewizard-agents/** | Market discovery, scheduling, monitoring | Node.js 18+, TypeScript, Supabase |
+| **tradewizard-frontend/** | Web UI for trading and analysis | Next.js 16, React 19, Tailwind CSS |
 
-**🟢 TradeWizard Agents (tradewizard-agents/)**
-- **Purpose**: CLI tools and automated monitoring service
-- **Features**: Market discovery, scheduled analysis, data persistence
-- **Workflow Execution**: Can use local LangGraph OR remote DOA service
-- **Database**: Supabase PostgreSQL for storing analysis results
-- **Monitoring**: 24/7 automated market monitoring with configurable intervals
-
-**🎨 Frontend (tradewizard-frontend/)**
-- **Modern Web App**: Next.js 16 with App Router and TypeScript
-- **Seamless Trading**: Magic Link authentication with Polymarket integration
-- **Real-time UI**: Live market data and AI recommendations
-- **Professional Analytics**: Bloomberg Terminal-style market intelligence
-
-### How They Work Together
+### Data Flow
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  tradewizard-agents (Monitor Service)                       │
-│  - Discovers markets                                        │
-│  - Schedules analysis                                       │
-│  - Manages API quotas                                       │
-│  - Stores results in Supabase                               │
-└────────────────┬────────────────────────────────────────────┘
-                 │
-                 │ HTTP Request
-                 ▼
-┌─────────────────────────────────────────────────────────────┐
-│  doa (Workflow Service)                                     │
-│  - Executes LangGraph workflow                              │
-│  - Runs 15+ specialized AI agents                           │
-│  - Uses Digital Ocean Gradient AI (Llama models)            │
-│  - Returns analysis results                                 │
-└─────────────────────────────────────────────────────────────┘
+Monitor Service (tradewizard-agents)
+  ↓ HTTP Request
+Workflow Service (doa)
+  ↓ LangGraph Execution
+15+ Specialized AI Agents
+  ↓ Analysis Results
+Supabase (Persistence)
+  ↓ API
+Frontend (tradewizard-frontend)
 ```
 
-## Quick Start
+## Getting Started
 
-### 🚀 Recommended Setup: DOA Workflow Service + TradeWizard Monitor
+### Prerequisites
 
-**Get the full system running in 10 minutes!**
-
-#### Prerequisites
-
-Before starting, you'll need:
 - Python 3.10+ and Node.js 18+
 - Digital Ocean account with Gradient AI access
 - Supabase account (free tier works)
 - Digital Ocean API token and Inference key
 
-#### Step 1: Set Up Database
+### Option 1: Full Stack (Recommended)
+
+**Setup time: ~10 minutes**
 
 ```bash
-# 1. Create a Supabase project at https://supabase.com
-# 2. Get your project URL and keys from Settings → API
-
-# 3. Link to your Supabase project
+# 1. Set up database
 cd tradewizard-agents
 npx supabase link --project-ref your-project-ref
-
-# 4. Push database schema
 npx supabase db push
 
-# 5. Generate TypeScript types (optional but recommended)
-npx supabase gen types typescript --linked > src/database/types.ts
-```
-
-#### Step 2: Deploy DOA Workflow Service
-
-```bash
-# 1. Navigate to doa directory
+# 2. Deploy DOA workflow service
 cd ../doa
-
-# 2. Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-
-# 3. Install dependencies
+python -m venv venv && source venv/bin/activate
 pip install -r requirements.txt
-
-# 4. Configure environment
 cp .env.example .env
-# Edit .env with your API keys:
-# - DIGITALOCEAN_INFERENCE_KEY (Digital Ocean Gradient AI)
-# - SUPABASE_URL, SUPABASE_KEY, SUPABASE_SERVICE_ROLE_KEY
-# - NEWSDATA_API_KEY (optional)
-# - OPIK_API_KEY (optional)
-
-# 5. Start the workflow service
+# Edit .env with your API keys
 export DIGITALOCEAN_API_TOKEN=your_token
-gradient agent run
-# Service runs on http://localhost:8080
-```
+gradient agent run  # Runs on http://localhost:8080
 
-#### Step 3: Configure TradeWizard Monitor
-
-```bash
-# 1. Navigate to tradewizard-agents directory
+# 3. Start monitor service (new terminal)
 cd ../tradewizard-agents
+npm install && cp .env.example .env
+# Edit .env: set WORKFLOW_SERVICE_URL=http://localhost:8080/run
+npm run build && npm run monitor:start
 
-# 2. Install dependencies
-npm install
-
-# 3. Configure environment
-cp .env.example .env
-# Edit .env and set:
-# WORKFLOW_SERVICE_URL=http://localhost:8080/run
-# DIGITALOCEAN_API_TOKEN=your_token
-# SUPABASE_URL and SUPABASE_KEY
-# NEWSDATA_API_KEY
-
-# 4. Build the project
-npm run build
-
-# 5. Start the monitor service
-npm run monitor:start
-```
-
-#### Step 4: Verify Everything Works
-
-```bash
-# Check monitor status
+# 4. Verify
 npm run monitor:status
-
-# Trigger manual analysis
-npm run monitor:trigger
-
-# View health and logs
-npm run monitor:health
 ```
 
-### 🔧 Alternative: Local Workflow Execution (No DOA Service)
-
-If you prefer to run everything locally without the DOA service:
+### Option 2: Local Execution Only
 
 ```bash
-# Set up database first (same as Step 1 above)
 cd tradewizard-agents
 npx supabase link --project-ref your-project-ref
 npx supabase db push
-
-# Configure and run
-npm install
-cp .env.example .env
+npm install && cp .env.example .env
 # Configure LLM providers (OpenAI, Anthropic, Google, or Amazon Nova)
-# Do NOT set WORKFLOW_SERVICE_URL
 npm run build
 npm run cli -- analyze <polymarket-condition-id>
 ```
 
-### 🎨 Frontend Setup (Optional)
+### Option 3: Frontend Only
 
 ```bash
 cd tradewizard-frontend
-npm install
-cp .env.example .env.local
-# Configure your environment variables
-npm run dev
+npm install && cp .env.example .env.local
+# Configure environment variables
+npm run dev  # http://localhost:3000
 ```
-
-Visit `http://localhost:3000` to access the application.
 
 ## Key Features
 
-### 🤖 Multi-Agent Analysis
-- **Market Intelligence**: Specialized agents analyze news, polling, sentiment, and market dynamics
+- **Multi-Agent Analysis**: 15+ specialized agents analyzing news, polling, sentiment, and market dynamics
 - **Adversarial Testing**: Cross-examination agents challenge assumptions and identify risks
-- **Consensus Engine**: Probability fusion from multiple analytical perspectives
-
-### 📊 Professional Trading Interface
-- **AI Recommendations**: Clear buy/sell signals with detailed reasoning
-- **Risk Assessment**: Scenario analysis and position sizing guidance
-- **Real-time Data**: Live market prices and news integration
-- **Portfolio Management**: Track positions and performance analytics
-
-### 🔗 Polymarket Integration
-- **Direct Trading**: Execute trades through regulated prediction market infrastructure
-- **Market Discovery**: Browse and analyze thousands of real-world outcome markets
-- **Wallet Integration**: Seamless authentication via Magic Link
+- **Explainable Recommendations**: Clear buy/sell signals with detailed reasoning chains
+- **Real-time Integration**: Live market prices and news data from Polymarket and NewsData.io
+- **Automated Monitoring**: 24/7 market discovery and analysis with configurable intervals
+- **Professional UI**: Bloomberg Terminal-style analytics with portfolio tracking
 
 ## Technology Stack
 

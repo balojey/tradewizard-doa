@@ -2,249 +2,52 @@
 
 > Multi-agent system for prediction market analysis using LangGraph and Opik observability
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Usage](#usage)
-- [Development](#development)
-- [Testing](#testing)
-- [Deployment](#deployment)
-- [Troubleshooting](#troubleshooting)
-- [Documentation](#documentation)
-
 ## Overview
 
-The Market Intelligence Engine transforms raw prediction market data from Polymarket into explainable, probability-driven trade recommendations. The system follows a structured debate protocol where specialized AI agents independently analyze markets, construct competing theses, challenge each other's assumptions, and reach consensus on fair probability estimates.
+The Market Intelligence Engine transforms prediction market data from Polymarket into explainable, probability-driven trade recommendations. Specialized AI agents independently analyze markets, construct competing theses, challenge each other's assumptions, and reach consensus on fair probability estimates.
 
 ### Core Principles
 
-1. **Adversarial Reasoning** - Multiple agents with different perspectives prevent groupthink and expose weak assumptions
-2. **Explainability First** - Every recommendation traces back to specific data signals and agent reasoning
-3. **Graceful Degradation** - Partial failures in any component do not crash the entire pipeline
+- **Adversarial Reasoning**: Multiple agents prevent groupthink and expose weak assumptions
+- **Explainability First**: Every recommendation traces back to specific data signals
+- **Graceful Degradation**: Partial failures don't crash the pipeline
 
 ### Key Features
 
-- 🤖 **Multi-Agent Analysis**: Specialized AI agents analyze markets from different perspectives
-- 🔄 **Structured Debate Protocol**: Bull and bear theses compete through adversarial testing
-- 📊 **Probability-Driven**: Consensus probability estimates with uncertainty quantification
-- 🔍 **Full Observability**: Complete tracing and debugging with Opik integration
-- 🎯 **Actionable Recommendations**: Clear trade signals with entry/exit zones and risk assessment
-- 🛡️ **Robust Error Handling**: Graceful degradation and comprehensive error recovery
-- 🔧 **Autonomous Tool-Calling Agents**: AI agents autonomously fetch news and market data using LangChain tools (ReAct pattern)
-- 📰 **NewsData Integration**: Real-time news intelligence with sentiment analysis and keyword extraction
-- 📈 **Polymarket Tools**: Cross-market analysis, momentum detection, and sentiment shift tracking
-- 🧠 **Agent Memory System**: Closed-loop analysis where agents access and build upon their historical outputs
-
-## Architecture
-
-The Market Intelligence Engine is built on **LangGraph**, a framework for building stateful, multi-agent workflows, with **Opik** for comprehensive observability and tracing.
-
-### LangGraph Workflow
-
-```
-┌─────────────────┐
-│  Polymarket API │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────────────────────────────────┐
-│              LANGGRAPH STATE GRAPH WORKFLOW                  │
-│                                                               │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Node: Market Ingestion                               │  │
-│  │ - Fetch market data from Polymarket APIs             │  │
-│  │ - Transform into Market Briefing Document (MBD)      │  │
-│  │ - Update graph state with MBD                        │  │
-│  └──────────────────┬───────────────────────────────────┘  │
-│                     │                                        │
-│                     ▼                                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Node: Memory Context Retrieval                       │  │
-│  │ - Query historical agent signals from database       │  │
-│  │ - Retrieve last 3-5 signals per agent for market     │  │
-│  │ - Format as structured memory context                │  │
-│  │ - Populate memoryContext in graph state              │  │
-│  └──────────────────┬───────────────────────────────────┘  │
-│                     │                                        │
-│                     ▼                                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Parallel Nodes: Intelligence Agents (Autonomous)     │  │
-│  │ ┌────────────────────────────────────────────────┐  │  │
-│  │ │ Breaking News Agent (Autonomous)               │  │  │
-│  │ │ - Autonomously fetches news using tools        │  │  │
-│  │ │ - Tools: latest news, archive, crypto, market  │  │  │
-│  │ │ - Receives own historical signals as context   │  │  │
-│  │ └────────────────────────────────────────────────┘  │  │
-│  │ ┌────────────────────────────────────────────────┐  │  │
-│  │ │ Media Sentiment Agent (Autonomous)             │  │  │
-│  │ │ - Autonomously fetches news with sentiment     │  │  │
-│  │ │ - Tools: sentiment-filtered news queries       │  │  │
-│  │ │ - Receives own historical signals as context   │  │  │
-│  │ └────────────────────────────────────────────────┘  │  │
-│  │ ┌────────────────────────────────────────────────┐  │  │
-│  │ │ Polling Intelligence Agent (Autonomous)        │  │  │
-│  │ │ - Autonomously fetches market data using tools │  │  │
-│  │ │ - Tools: related markets, prices, momentum     │  │  │
-│  │ │ - Receives own historical signals as context   │  │  │
-│  │ └────────────────────────────────────────────────┘  │  │
-│  │ ┌────────────────────────────────────────────────┐  │  │
-│  │ │ Market Microstructure Agent (GPT-4-turbo)      │  │  │
-│  │ │ - Order book analysis, spread, momentum        │  │  │
-│  │ │ - Receives own historical signals as context   │  │  │
-│  │ └────────────────────────────────────────────────┘  │  │
-│  │ ┌────────────────────────────────────────────────┐  │  │
-│  │ │ Probability Baseline Agent (Gemini-1.5-flash)  │  │  │
-│  │ │ - Naive baseline probability estimate          │  │  │
-│  │ │ - Receives own historical signals as context   │  │  │
-│  │ └────────────────────────────────────────────────┘  │  │
-│  │ ┌────────────────────────────────────────────────┐  │  │
-│  │ │ Risk Assessment Agent (Claude-3-sonnet)        │  │  │
-│  │ │ - Tail risks and failure modes                 │  │  │
-│  │ │ - Receives own historical signals as context   │  │  │
-│  │ └────────────────────────────────────────────────┘  │  │
-│  └──────────────────┬───────────────────────────────────┘  │
-│                     │                                        │
-│                     ▼                                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Node: Thesis Construction                            │  │
-│  │ - Generate bull thesis (YES outcome)                 │  │
-│  │ - Generate bear thesis (NO outcome)                  │  │
-│  │ - Calculate market edge                              │  │
-│  └──────────────────┬───────────────────────────────────┘  │
-│                     │                                        │
-│                     ▼                                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Node: Cross-Examination                              │  │
-│  │ - Evidence test (factual verification)               │  │
-│  │ - Causality test (correlation vs causation)          │  │
-│  │ - Timing test (catalyst timeline)                    │  │
-│  │ - Liquidity test (execution feasibility)             │  │
-│  │ - Tail risk test (low-probability scenarios)         │  │
-│  └──────────────────┬───────────────────────────────────┘  │
-│                     │                                        │
-│                     ▼                                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Node: Consensus Engine                               │  │
-│  │ - Calculate weighted consensus probability           │  │
-│  │ - Compute confidence bands                           │  │
-│  │ - Classify probability regime                        │  │
-│  └──────────────────┬───────────────────────────────────┘  │
-│                     │                                        │
-│                     ▼                                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │ Node: Recommendation Generation                      │  │
-│  │ - Calculate expected value                           │  │
-│  │ - Determine trade direction                          │  │
-│  │ - Generate entry/target zones                        │  │
-│  │ - Create natural language explanation                │  │
-│  └──────────────────┬───────────────────────────────────┘  │
-│                     │                                        │
-└─────────────────────┼────────────────────────────────────────┘
-                      │
-                      ▼
-              ┌───────────────┐
-              │ Trade Output  │
-              └───────────────┘
-```
-
-### GraphState Schema
-
-The LangGraph workflow uses a shared state object that flows through all nodes:
-
-```typescript
-const GraphState = Annotation.Root({
-  // Input
-  conditionId: Annotation<string>,
-  
-  // Market Ingestion Output
-  mbd: Annotation<MarketBriefingDocument | null>,
-  ingestionError: Annotation<IngestionError | null>,
-  
-  // Memory Context (Agent Memory System)
-  memoryContext: Annotation<Map<string, AgentMemoryContext>>,
-  
-  // Agent Signals Output
-  agentSignals: Annotation<AgentSignal[]>,
-  agentErrors: Annotation<AgentError[]>,
-  
-  // Thesis Construction Output
-  bullThesis: Annotation<Thesis | null>,
-  bearThesis: Annotation<Thesis | null>,
-  
-  // Cross-Examination Output
-  debateRecord: Annotation<DebateRecord | null>,
-  
-  // Consensus Output
-  consensus: Annotation<ConsensusProbability | null>,
-  consensusError: Annotation<RecommendationError | null>,
-  
-  // Final Recommendation
-  recommendation: Annotation<TradeRecommendation | null>,
-  
-  // Audit Trail
-  auditLog: Annotation<AuditEntry[]>
-});
-```
-
-### Data Flow
-
-```
-Polymarket APIs
-      ↓
-MarketBriefingDocument (MBD)
-      ↓
-AgentSignal[] (parallel execution)
-      ↓
-{bull: Thesis, bear: Thesis}
-      ↓
-DebateRecord (cross-examination)
-      ↓
-ConsensusProbability
-      ↓
-TradeRecommendation
-```
+- 🤖 Multi-Agent Analysis from different perspectives
+- 🔄 Structured Debate Protocol with bull/bear theses
+- 📊 Probability-Driven consensus with uncertainty quantification
+- 🔍 Full Observability with Opik integration
+- 🎯 Actionable Recommendations with entry/exit zones
+- 🛡️ Robust Error Handling and recovery
+- 🔧 Autonomous Tool-Calling Agents (ReAct pattern)
+- 📰 Real-time News Intelligence with sentiment analysis
+- 📈 Polymarket Tools for cross-market analysis
+- 🧠 Agent Memory System for closed-loop analysis
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Node.js 18+** and npm/yarn
-- **API Keys** for at least one LLM provider:
-  - OpenAI (GPT-4) - Recommended for multi-provider mode
-  - Anthropic (Claude) - Optional for multi-provider mode
-  - Google (Gemini) - Optional for multi-provider mode
-  - Amazon Nova (AWS Bedrock) - Optional, ultra-low cost option
-- **Opik API Key** (optional, for observability)
+- Node.js 18+
+- API keys for at least one LLM provider (OpenAI, Anthropic, Google, or Amazon Nova)
+- (Optional) Opik API key for observability
 
-### Installation
-
-1. **Clone and install dependencies:**
+### Setup (5 minutes)
 
 ```bash
+# 1. Install dependencies
 cd tradewizard-agents
 npm install
-```
 
-2. **Configure environment variables:**
-
-```bash
+# 2. Configure environment
 cp .env.example .env
-```
+# Edit .env with your API keys
 
-Edit `.env` with your API keys. See [Configuration](#configuration) for details.
-
-3. **Build the project:**
-
-```bash
+# 3. Build
 npm run build
-```
 
-4. **Run your first analysis:**
-
-```bash
+# 4. Run your first analysis
 npm run cli -- analyze <polymarket-condition-id>
 ```
 
@@ -260,21 +63,83 @@ npm run cli -- analyze 0x1234567890abcdef --debug
 # Budget-friendly single-provider mode
 npm run cli -- analyze 0x1234567890abcdef --single-provider openai --model gpt-4o-mini
 
-# With visualization and cost tracking
-npm run cli -- analyze 0x1234567890abcdef --visualize --show-costs --opik-trace
+# With cost tracking
+npm run cli -- analyze 0x1234567890abcdef --show-costs --opik-trace
+```
+
+## Architecture
+
+### LangGraph Workflow
+
+```
+Market Analysis Request
+    ↓
+[Market Ingestion] → Fetch market data
+    ↓
+[Memory Retrieval] → Load historical agent signals
+    ↓
+[Parallel Agent Execution] → All agents analyze simultaneously
+    ├─ Breaking News Agent (autonomous tool-calling)
+    ├─ Media Sentiment Agent (autonomous tool-calling)
+    ├─ Polling Intelligence Agent (autonomous tool-calling)
+    ├─ Market Microstructure Agent
+    ├─ Probability Baseline Agent
+    └─ Risk Assessment Agent
+    ↓
+[Thesis Construction] → Build bull and bear theses
+    ↓
+[Cross-Examination] → Adversarial testing
+    ↓
+[Consensus Engine] → Calculate unified probability
+    ↓
+[Recommendation Generation] → Create trade signal
+    ↓
+Trade Recommendation Output
+```
+
+### GraphState Schema
+
+```typescript
+const GraphState = Annotation.Root({
+  // Input
+  conditionId: Annotation<string>,
+  
+  // Market Ingestion
+  mbd: Annotation<MarketBriefingDocument | null>,
+  ingestionError: Annotation<IngestionError | null>,
+  
+  // Memory Context (Agent Memory System)
+  memoryContext: Annotation<Map<string, AgentMemoryContext>>,
+  
+  // Agent Signals
+  agentSignals: Annotation<AgentSignal[]>,
+  agentErrors: Annotation<AgentError[]>,
+  
+  // Thesis Construction
+  bullThesis: Annotation<Thesis | null>,
+  bearThesis: Annotation<Thesis | null>,
+  
+  // Cross-Examination
+  debateRecord: Annotation<DebateRecord | null>,
+  
+  // Consensus
+  consensus: Annotation<ConsensusProbability | null>,
+  
+  // Final Recommendation
+  recommendation: Annotation<TradeRecommendation | null>,
+  
+  // Audit Trail
+  auditLog: Annotation<AuditEntry[]>
+});
 ```
 
 ## Configuration
 
-The Market Intelligence Engine supports flexible configuration through environment variables. See `.env.example` for all options.
-
 ### LLM Configuration Modes
-
-The engine supports two LLM configuration modes:
 
 #### 1. Multi-Provider Mode (Default - Optimal Quality)
 
-Uses different LLMs for different agents to get diverse perspectives:
+Uses different LLMs for different agents:
 
 ```bash
 # .env
@@ -286,302 +151,92 @@ ANTHROPIC_DEFAULT_MODEL=claude-3-sonnet-20240229
 
 GOOGLE_API_KEY=...
 GOOGLE_DEFAULT_MODEL=gemini-1.5-flash
-
-# Optional: Amazon Nova (AWS Bedrock)
-AWS_REGION=us-east-1
-AWS_ACCESS_KEY_ID=AKIA...
-AWS_SECRET_ACCESS_KEY=...
-NOVA_MODEL_NAME=amazon.nova-lite-v1:0
 ```
 
 **Agent-LLM Mapping:**
-- Market Microstructure Agent → GPT-4-turbo (OpenAI)
-- Probability Baseline Agent → Gemini-2.5-flash (Google)
-- Risk Assessment Agent → Claude-3-sonnet (Anthropic)
+- Market Microstructure → GPT-4-turbo
+- Probability Baseline → Gemini-2.5-flash
+- Risk Assessment → Claude-3-sonnet
 
-**Alternative with Nova (Cost-Optimized):**
-- Market Microstructure Agent → Nova Pro (Amazon)
-- Probability Baseline Agent → Nova Lite (Amazon)
-- Risk Assessment Agent → Nova Lite (Amazon)
-
-**Pros:**
-- ✅ Diverse perspectives reduce model-specific biases
-- ✅ Better quality recommendations
-- ✅ Each agent uses the LLM best suited for its task
-
-**Cons:**
-- ❌ Higher cost
-- ❌ Requires API keys for multiple providers
+**Pros:** Diverse perspectives, better quality
+**Cons:** Higher cost, multiple API keys
 
 #### 2. Single-Provider Mode (Budget-Friendly)
 
-Uses one LLM for all agents with different system prompts:
+Uses one LLM for all agents:
 
 ```bash
 # .env
 LLM_SINGLE_PROVIDER=google
-OPENAI_API_KEY=AI...
-OPENAI_DEFAULT_MODEL=gemini-2.5-flash
+GOOGLE_API_KEY=...
+GOOGLE_DEFAULT_MODEL=gemini-2.5-flash
 ```
 
-**Pros:**
-- ✅ Lower cost
-- ✅ Simpler API key management
-- ✅ Still maintains agent specialization through prompts
-
-**Cons:**
-- ❌ Less diverse perspectives
-- ❌ Potential for model-specific biases
-
-**Supported Providers:**
-- `openai` - Use OpenAI models (gpt-4-turbo, gpt-4o-mini, etc.)
-- `anthropic` - Use Anthropic models (claude-3-sonnet, claude-3-haiku, etc.)
-- `google` - Use Google models (gemini-1.5-pro, gemini-1.5-flash, etc.)
-- `nova` - Use Amazon Nova models (amazon.nova-micro-v1:0, amazon.nova-lite-v1:0, amazon.nova-pro-v1:0)
+**Supported Providers:** openai, anthropic, google, nova
 
 **Cost Comparison (per 100 analyses):**
 - Multi-provider (premium): $10-15
-- Multi-provider (Nova-optimized): $0.80-2
-- Single-provider (OpenAI gpt-4o-mini): $1-2
-- Single-provider (Google Gemini): $0.60-1
+- Multi-provider (Nova): $0.80-2
+- Single-provider (gpt-4o-mini): $1-2
+- Single-provider (Gemini): $0.60-1
 - Single-provider (Nova Lite): $0.20-0.40
-- Single-provider (Nova Micro): $0.10-0.20 (cheapest)
 
-**For detailed setup instructions for all providers, see [LLM Provider Setup Guide](./docs/LLM_PROVIDERS.md)**
+See [LLM Provider Setup Guide](./docs/LLM_PROVIDERS.md) for detailed setup.
 
-### Opik Configuration
-
-Opik provides LLM tracing, debugging, and cost tracking. Supports both cloud and self-hosted deployments.
-
-#### Cloud Opik (Recommended)
+### Core Configuration
 
 ```bash
 # .env
+
+# Opik Observability (optional)
 OPIK_API_KEY=your_opik_api_key_here
 OPIK_PROJECT_NAME=market-intelligence-engine
-OPIK_WORKSPACE=default
 OPIK_TRACK_COSTS=true
-```
 
-Sign up at [https://www.comet.com/opik](https://www.comet.com/opik)
-
-#### Self-Hosted Opik
-
-```bash
-# .env
-OPIK_BASE_URL=http://localhost:5000
-OPIK_PROJECT_NAME=market-intelligence-engine
-OPIK_TRACK_COSTS=true
-```
-
-See [Opik Setup Guide](#opik-setup-guide) for installation instructions.
-
-### LangGraph Configuration
-
-```bash
-# .env
+# LangGraph
 LANGGRAPH_CHECKPOINTER=memory      # Options: memory, sqlite, postgres
-LANGGRAPH_RECURSION_LIMIT=25       # Maximum graph execution depth
-LANGGRAPH_STREAM_MODE=values       # Options: values, updates
-```
+LANGGRAPH_RECURSION_LIMIT=25
 
-**Checkpointer Options:**
-- `memory` - In-memory (development, no persistence)
-- `sqlite` - File-based persistence (production)
-- `postgres` - Database persistence (production, requires DB setup)
+# Agent Configuration
+AGENT_TIMEOUT_MS=10000
+MIN_AGENTS_REQUIRED=2
 
-### Agent Configuration
-
-```bash
-# .env
-AGENT_TIMEOUT_MS=10000           # Maximum time per agent in milliseconds
-MIN_AGENTS_REQUIRED=2            # Minimum agents needed for consensus
-```
-
-### NewsData Configuration
-
-The autonomous news and polling agents use LangChain tool-calling capabilities to fetch data during analysis:
-
-```bash
-# .env
+# NewsData (for autonomous agents)
 NEWSDATA_API_KEY=your_newsdata_api_key_here
+MAX_TOOL_CALLS=5
+TOOL_CACHE_ENABLED=true
 
-# Tool usage limits (optional, defaults shown)
-MAX_TOOL_CALLS=5              # Maximum tool calls per agent
-AGENT_TIMEOUT_MS=45000        # Agent timeout in milliseconds
-TOOL_CACHE_ENABLED=true       # Enable tool result caching
-```
-
-**Get a NewsData API key:**
-1. Sign up at [https://newsdata.io](https://newsdata.io)
-2. Copy your API key from the dashboard
-3. Add it to your `.env` file
-
-**Autonomous Tool-Calling:**
-- Agents autonomously decide which tools to call based on market context
-- Breaking News Agent: Fetches latest news, archive news, crypto news, market news
-- Media Sentiment Agent: Fetches news with sentiment filters for analysis
-- Polling Intelligence Agent: Fetches related markets, historical prices, market momentum
-- Tool results are cached within each analysis session to avoid redundant API calls
-- All tool invocations are logged in the audit trail for debugging
-
-**Configuration Options:**
-- `MAX_TOOL_CALLS`: Limits tool calls per agent (default: 5, prevents runaway costs)
-- `AGENT_TIMEOUT_MS`: Maximum execution time per agent (default: 45000ms)
-- `TOOL_CACHE_ENABLED`: Enable/disable tool result caching (default: true)
-
-See [Autonomous News Agents Documentation](./docs/AUTONOMOUS_NEWS_AGENTS.md) for complete details on tool-calling capabilities.
-
-### Agent Memory System Configuration
-
-The Agent Memory System enables closed-loop analysis where agents access and build upon their historical outputs:
-
-```bash
-# .env
-# Enable/disable memory system
+# Agent Memory System
 MEMORY_SYSTEM_ENABLED=true
-
-# Maximum historical signals per agent (default: 3)
 MEMORY_MAX_SIGNALS_PER_AGENT=3
-
-# Query timeout in milliseconds (default: 5000)
 MEMORY_QUERY_TIMEOUT_MS=5000
 
-# Retry attempts for rate limits (default: 3)
-MEMORY_RETRY_ATTEMPTS=3
-```
-
-**How it works:**
-- Before each analysis, agents retrieve their previous 3-5 signals for the same market
-- Historical signals are formatted as structured memory context in agent prompts
-- Agents reference previous analysis and explain changes in reasoning
-- System tracks evolution of agent analysis over time (direction changes, probability shifts, confidence changes)
-
-**Benefits:**
-- ✅ More consistent analysis across time periods
-- ✅ Agents can explain changes in their reasoning
-- ✅ Better tracking of evolving market conditions
-- ✅ Improved analysis quality through continuity
-
-**Error Handling:**
-- If memory retrieval fails, agents continue with empty memory context (graceful degradation)
-- All errors are logged for debugging
-- Retry logic with exponential backoff for rate limits
-
-See [Agent Memory System Documentation](./src/database/MEMORY_SYSTEM_CONFIG.md) for complete details.
-
-### Human-Readable Timestamp Formatting
-
-The system automatically converts ISO 8601 timestamps to natural language format when presenting data to LLM agents, improving temporal comprehension:
-
-```bash
-# .env
-# Enable/disable human-readable timestamps (default: true)
+# Timestamps
 ENABLE_HUMAN_READABLE_TIMESTAMPS=true
-
-# Timezone for absolute time formatting (default: America/New_York)
 TIMESTAMP_TIMEZONE=America/New_York
 
-# Threshold for relative vs absolute format in days (default: 7)
-RELATIVE_TIME_THRESHOLD_DAYS=7
-```
+# Consensus
+MIN_EDGE_THRESHOLD=0.05
+HIGH_DISAGREEMENT_THRESHOLD=0.15
 
-**Format Examples:**
-- Recent timestamps: "just now", "5 minutes ago", "2 hours ago", "3 days ago"
-- Older timestamps: "January 15, 2024 at 3:30 PM EST"
-- Automatic DST handling: EST/EDT based on date
-
-**How it works:**
-- Timestamps < 7 days old: Relative format ("2 hours ago")
-- Timestamps >= 7 days old: Absolute format ("January 15, 2024 at 3:30 PM EST")
-- All timestamps in agent prompts are automatically formatted
-- Original ISO 8601 timestamps remain unchanged in state and database
-
-**Benefits:**
-- ✅ Improved agent understanding of temporal relationships
-- ✅ Reduced cognitive load on LLM agents
-- ✅ Better analysis quality through clearer time context
-- ✅ Zero impact on existing data structures
-- ✅ Backward compatible with feature flag support
-
-**Runtime Configuration:**
-```typescript
-import { setConfig } from './utils/timestamp-formatter.js';
-
-// Disable formatting globally
-setConfig({ enabled: false });
-
-// Change timezone
-setConfig({ timezone: 'America/Los_Angeles' });
-
-// Adjust threshold
-setConfig({ relativeThresholdDays: 14 });
-```
-
-See [Timestamp Formatting Documentation](./src/utils/TIMESTAMP_FORMATTING.md) for complete API reference and examples.
-
-### Consensus Configuration
-
-```bash
-# .env
-MIN_EDGE_THRESHOLD=0.05                # Minimum edge to recommend trade (5%)
-HIGH_DISAGREEMENT_THRESHOLD=0.15       # Disagreement index threshold (15%)
-```
-
-### Workflow Service Configuration (Remote Execution)
-
-The system supports executing market analysis workflows via HTTP requests to a remote service, enabling deployment flexibility and separation of concerns.
-
-```bash
-# .env
-# Optional: Remote workflow service URL
+# Remote Workflow Service (optional)
 WORKFLOW_SERVICE_URL=https://your-workflow-service.com/analyze
-
-# Optional: Authentication token for workflow service
 DIGITALOCEAN_API_TOKEN=your_api_token_here
-
-# Optional: Request timeout in milliseconds (default: 120000 = 2 minutes)
 WORKFLOW_SERVICE_TIMEOUT_MS=120000
 ```
 
-**Configuration Modes:**
+### Getting API Keys
 
-1. **Local Execution (Default)**: When `WORKFLOW_SERVICE_URL` is not set, workflows execute locally using LangGraph
-2. **Remote Execution**: When `WORKFLOW_SERVICE_URL` is set, all analysis requests are sent to the remote service via HTTP
-
-**How it works:**
-- CLI and Monitor Service automatically route to the configured execution method
-- No code changes needed - just set the environment variable
-- Authentication via Bearer token in Authorization header
-- Graceful error handling with detailed logging
-
-**Benefits:**
-- ✅ Deploy workflow execution separately from CLI/Monitor
-- ✅ Scale workflow processing independently
-- ✅ Centralize LLM API key management
-- ✅ Reduce resource requirements for CLI/Monitor instances
-- ✅ Easy rollback by removing environment variable
-
-**Migration Path:**
-1. Deploy workflow service to remote infrastructure
-2. Test with `WORKFLOW_SERVICE_URL` on one instance
-3. Monitor logs and health metrics
-4. Gradually roll out to more instances
-5. Rollback by removing `WORKFLOW_SERVICE_URL` if needed
-
-**Logging and Monitoring:**
-
-For detailed information about log messages, error formats, and health check responses, see [Workflow Service Logging Documentation](./docs/WORKFLOW_SERVICE_LOGGING.md).
-
-See [Workflow Service Deployment Guide](#workflow-service-deployment) for complete setup instructions.
+1. **OpenAI**: https://platform.openai.com/api-keys
+2. **Anthropic**: https://console.anthropic.com/
+3. **Google**: https://ai.google.dev/
+4. **Amazon Nova**: AWS Console → Bedrock
+5. **Opik**: https://www.comet.com/opik
+6. **NewsData**: https://newsdata.io
 
 ## Usage
 
-### CLI Interface
-
-The CLI provides a command-line interface for analyzing markets. See [CLI.md](./CLI.md) for complete documentation.
-
-**Basic Commands:**
+### CLI Commands
 
 ```bash
 # Analyze a market
@@ -595,20 +250,18 @@ npm run cli -- checkpoint <conditionId>
 ```
 
 **Common Options:**
-
-- `--debug` - Show debug information and graph state
-- `--visualize` - Generate LangGraph workflow visualization
+- `--debug` - Show debug information
+- `--visualize` - Generate workflow visualization
 - `--opik-trace` - Display Opik trace URL
 - `--single-provider <provider>` - Use single LLM provider
 - `--model <model>` - Override default model
-- `--show-costs` - Display LLM cost tracking
+- `--show-costs` - Display LLM costs
 
 ### Programmatic Usage
 
 ```typescript
 import { analyzeMarket } from './src/workflow';
 
-// Analyze a market
 const result = await analyzeMarket('0x1234567890abcdef');
 
 console.log('Action:', result.recommendation.action);
@@ -634,30 +287,21 @@ Liquidity Risk: Low
 EXPLANATION
 ───────────────────────────────────────────────────────────────
 
-Summary: Market is underpricing the probability of this outcome
-based on strong fundamental catalysts and favorable risk/reward.
+Summary: Market is underpricing the probability based on strong
+fundamental catalysts and favorable risk/reward.
 
 Core Thesis: Three major catalysts converge in Q2 2024, creating
 a high-probability path to YES resolution.
 
 Key Catalysts:
 • Policy announcement expected March 15, 2024
-• Historical precedent shows 75% success rate in similar scenarios
-• Market sentiment shifting based on recent polling data
+• Historical precedent shows 75% success rate
+• Market sentiment shifting based on polling data
 
 Failure Scenarios:
 • Unexpected regulatory intervention
-• External economic shock disrupting timeline
+• External economic shock
 • Key stakeholder opposition emerges
-
-───────────────────────────────────────────────────────────────
-METADATA
-───────────────────────────────────────────────────────────────
-
-Market Probability: 50%
-Consensus Probability: 62%
-Edge: 12%
-Confidence Band: [58%, 66%]
 ```
 
 ## Development
@@ -667,69 +311,52 @@ Confidence Band: [58%, 66%]
 ```
 tradewizard-agents/
 ├── src/
-│   ├── nodes/              # LangGraph node implementations
+│   ├── nodes/              # LangGraph nodes
 │   │   ├── market-ingestion.ts
 │   │   ├── memory-retrieval.ts
-│   │   ├── agents.ts       # Intelligence agent nodes (all agents defined here)
+│   │   ├── agents.ts       # All intelligence agents
 │   │   ├── thesis-construction.ts
 │   │   ├── cross-examination.ts
 │   │   ├── consensus-engine.ts
 │   │   └── recommendation-generation.ts
-│   ├── models/             # Data models and types
-│   │   ├── types.ts        # TypeScript interfaces
-│   │   ├── schemas.ts      # Zod schemas
-│   │   └── state.ts        # LangGraph state definition
-│   ├── tools/              # LangChain tools for autonomous agents
+│   ├── models/             # Data models
+│   │   ├── types.ts
+│   │   ├── schemas.ts
+│   │   └── state.ts
+│   ├── tools/              # LangChain tools
 │   │   ├── newsdata-tools.ts
 │   │   └── polymarket-tools.ts
-│   ├── database/           # Database layer
+│   ├── database/           # Persistence layer
 │   │   ├── supabase.ts
 │   │   ├── persistence.ts
 │   │   ├── memory-retrieval.ts
 │   │   └── migrate.ts
-│   ├── utils/              # Utility functions
+│   ├── utils/              # Utilities
 │   │   ├── polymarket-client.ts
 │   │   ├── audit-logger.ts
 │   │   ├── timestamp-formatter.ts
 │   │   └── opik-integration.ts
-│   ├── config/             # Configuration management
-│   │   └── index.ts
-│   ├── schemas/            # Additional Zod schemas
-│   ├── workflow.ts         # LangGraph workflow definition
+│   ├── config/             # Configuration
+│   ├── workflow.ts         # LangGraph workflow
 │   ├── cli.ts              # CLI interface
-│   ├── cli-monitor.ts      # Monitor service CLI
-│   ├── monitor.ts          # Automated monitoring service
+│   ├── monitor.ts          # Monitoring service
 │   └── index.ts            # Entry point
-├── scripts/                # Utility scripts
-│   ├── e2e-test.ts
-│   └── run-24h-test.ts
-├── dist/                   # Compiled JavaScript (generated)
-├── docs/                   # Additional documentation
-├── .env.example            # Environment variable template
+├── docs/                   # Documentation
+├── .env.example
 ├── package.json
 ├── tsconfig.json
 └── vitest.config.ts
 ```
 
-### Build
+### Build & Development
 
 ```bash
+# Build
 npm run build
-```
 
-Compiles TypeScript to JavaScript in the `dist/` directory.
-
-### Development Mode
-
-```bash
+# Development mode with hot-reload
 npm run dev
-```
 
-Runs the application with hot-reload using `tsx watch`.
-
-### Code Quality
-
-```bash
 # Linting
 npm run lint
 npm run lint:fix
@@ -741,47 +368,34 @@ npm run format:check
 
 ## Testing
 
-The project uses a dual testing approach:
-
 ### Unit Tests
-
-Test specific examples, edge cases, and integration points:
 
 ```bash
 npm test
 ```
 
 Run specific test files:
-
 ```bash
 npm test -- market-ingestion.test.ts
-npm test -- agents.test.ts
 ```
 
 ### Property-Based Tests
-
-Verify universal properties across randomly generated inputs using fast-check:
 
 ```bash
 npm test -- *.property.test.ts
 ```
 
-Property tests validate correctness properties like:
+Validates correctness properties like:
 - Market data retrieval completeness
 - Agent signal structure validity
 - Consensus probability structure
 - Trade recommendation validity
-- Audit trail completeness
 
 ### Integration Tests
-
-Test end-to-end workflows with real API calls:
 
 ```bash
 npm test -- workflow.integration.test.ts
 ```
-
-**Note:** Integration tests require valid API keys in `.env`.
 
 ### Test Coverage
 
@@ -790,13 +404,11 @@ npm test -- --coverage
 ```
 
 **Coverage Goals:**
-- Unit test coverage: >80% of code paths
-- Property test coverage: 100% of correctness properties
-- Integration test coverage: All external API interactions
+- Unit tests: >80%
+- Property tests: 100% of correctness properties
+- Integration tests: All external API interactions
 
 ### End-to-End Testing
-
-For the Automated Market Monitor service, E2E testing is available:
 
 ```bash
 # Run E2E test suite once
@@ -806,64 +418,28 @@ npm run test:e2e
 npm run test:e2e:continuous
 ```
 
-The E2E tests verify:
-- ✅ Market discovery and analysis
-- ✅ Scheduled execution
-- ✅ Data persistence in Supabase
-- ✅ API quota management
-- ✅ Graceful shutdown and restart
-- ✅ Health check accuracy
-- ✅ Manual triggers
-- ✅ Error recovery
-- ✅ 48-hour continuous operation
-
 ## Deployment
 
 ### Node.js Deployment
 
-#### Prerequisites
-
-- Node.js 18+ runtime
-- Environment variables configured
-- API keys for LLM providers
-- (Optional) Opik API key for observability
-
-#### Deployment Steps
-
-1. **Build the application:**
-
 ```bash
+# Build
 npm run build
-```
 
-2. **Set environment variables:**
-
-```bash
+# Set environment variables
 export OPENAI_API_KEY=sk-...
 export ANTHROPIC_API_KEY=sk-ant-...
-export GOOGLE_API_KEY=...
-export OPIK_API_KEY=...
 # ... other variables
-```
 
-Or use a `.env` file (recommended for production).
-
-3. **Run the application:**
-
-```bash
+# Run
 npm start
-```
 
-Or use a process manager like PM2:
-
-```bash
+# Or use PM2
 npm install -g pm2
 pm2 start dist/index.js --name market-intelligence-engine
 ```
 
 ### Docker Deployment
-
-Create a `Dockerfile`:
 
 ```dockerfile
 FROM node:18-alpine
@@ -880,275 +456,111 @@ CMD ["npm", "start"]
 ```
 
 Build and run:
-
 ```bash
 docker build -t market-intelligence-engine .
-docker run -d \
-  --env-file .env \
-  --name market-intelligence-engine \
-  market-intelligence-engine
+docker run -d --env-file .env --name market-intelligence-engine market-intelligence-engine
 ```
 
 ### Environment-Specific Configuration
 
-#### Development
-
+**Development:**
 ```bash
-# .env.development
 LOG_LEVEL=debug
 LANGGRAPH_CHECKPOINTER=memory
 LLM_SINGLE_PROVIDER=openai
 OPENAI_DEFAULT_MODEL=gpt-4o-mini
 ```
 
-#### Production
-
+**Production:**
 ```bash
-# .env.production
 LOG_LEVEL=info
 LANGGRAPH_CHECKPOINTER=sqlite
 AUDIT_TRAIL_RETENTION_DAYS=90
 OPIK_TRACK_COSTS=true
 ```
 
-### Monitoring and Observability
-
-#### Opik Dashboard
-
-Access your Opik dashboard to monitor:
-- LLM call traces
-- Cost tracking
-- Error rates
-- Performance metrics
-- Graph visualizations
-
-#### Health Checks
-
-The application exposes health check endpoints (if configured):
-
-```bash
-curl http://localhost:3000/health
-```
-
-#### Logging
-
-Structured logs are written to stdout/stderr. Configure log aggregation:
-
-```bash
-# Example with Docker
-docker logs -f market-intelligence-engine
-```
-
 ## Troubleshooting
 
-### Common Issues
-
-#### "No API keys configured"
-
-**Problem:** Missing or invalid LLM provider API keys.
-
-**Solution:**
-1. Check `.env` file exists and is properly formatted
-2. Verify at least one LLM provider API key is set
-3. For single-provider mode, ensure the specified provider has an API key
-4. Restart the application after updating `.env`
-
-#### "Market analysis failed"
-
-**Problem:** Unable to fetch market data or analysis failed.
-
-**Solutions:**
-- Verify the condition ID is valid (check Polymarket)
-- Ensure Polymarket API is accessible (check network)
-- Check API rate limits (wait and retry)
-- Review error logs for specific failure reason
-
-#### "Configuration invalid"
-
-**Problem:** Invalid configuration values.
-
-**Solutions:**
-- Verify `.env` file is properly formatted (no quotes around values)
-- Ensure required fields are present
-- Check that single-provider configuration matches available API keys
-- Validate numeric values are within acceptable ranges
-
-#### Tests timing out
-
-**Problem:** Tests exceed timeout limits.
-
-**Solutions:**
-- Increase timeout in `vitest.config.ts`
-- Check network connectivity
-- Verify API keys are valid
-- Use mocked tests for faster execution
-
-#### LangGraph recursion limit exceeded
-
-**Problem:** Graph execution exceeds maximum depth.
-
-**Solutions:**
-- Increase `LANGGRAPH_RECURSION_LIMIT` in `.env`
-- Check for infinite loops in node logic
-- Review conditional edges for proper termination
-
-#### Opik traces not appearing
-
-**Problem:** Traces not showing up in Opik dashboard.
-
-**Solutions:**
-- Verify `OPIK_API_KEY` is correct
-- Check `OPIK_PROJECT_NAME` matches your project
-- Ensure network connectivity to Opik servers
-- Review Opik configuration in `.env`
-- Check application logs for Opik errors
-
-#### Memory system not working
-
-**Problem:** Agents not receiving historical context or memory retrieval failing.
-
-**Solutions:**
-- Verify `MEMORY_SYSTEM_ENABLED=true` in `.env`
-- Check database connection: `npm run cli -- checkpoint <conditionId>`
-- Verify historical signals exist in database:
-  ```sql
-  SELECT COUNT(*) FROM agent_signals WHERE market_id = 'your-market-id';
-  ```
-- Check audit logs for memory retrieval errors
-- Ensure database indexes exist:
-  ```sql
-  SELECT indexname FROM pg_indexes WHERE tablename = 'agent_signals';
-  ```
-- Increase timeout if needed: `MEMORY_QUERY_TIMEOUT_MS=10000`
-- See [Memory System Troubleshooting](./src/database/MEMORY_SYSTEM_CONFIG.md#troubleshooting) for detailed guide
+| Issue | Solution |
+|-------|----------|
+| No API keys configured | Check `.env` file, verify at least one LLM provider key is set |
+| Market analysis failed | Verify condition ID is valid, check Polymarket API accessibility |
+| Configuration invalid | Verify `.env` format, ensure required fields present |
+| Tests timing out | Increase timeout in `vitest.config.ts`, check network connectivity |
+| LangGraph recursion limit exceeded | Increase `LANGGRAPH_RECURSION_LIMIT` in `.env` |
+| Opik traces not appearing | Verify `OPIK_API_KEY`, check `OPIK_PROJECT_NAME`, ensure network connectivity |
+| Memory system not working | Verify `MEMORY_SYSTEM_ENABLED=true`, check database connection, verify historical signals exist |
 
 ### LangGraph Debugging
 
-#### Using LangGraph Studio
-
-LangGraph Studio provides visual debugging of your workflow:
-
-1. **Install LangGraph Studio:**
+**Using LangGraph Studio:**
 
 ```bash
 npm install -g @langchain/langgraph-studio
-```
-
-2. **Start the studio:**
-
-```bash
 langgraph-studio
 ```
 
-3. **Load your workflow:**
-
-Point the studio to your `workflow.ts` file.
-
-4. **Debug features:**
-- Visual graph representation
-- Step-by-step execution
-- State inspection at each node
-- Breakpoints and conditional execution
-
-#### Inspecting Graph State
-
-Use the CLI to inspect checkpoint state:
+**Inspect graph state:**
 
 ```bash
 npm run cli -- checkpoint <conditionId> --debug
 ```
 
-This shows the complete graph state at each checkpoint.
-
-#### Enabling Debug Logging
+**Enable debug logging:**
 
 ```bash
 # .env
 LOG_LEVEL=debug
 ```
 
-This enables verbose logging of all graph operations.
-
 ### Opik Debugging
 
-#### Viewing Traces
+1. Access Opik dashboard: https://www.comet.com/opik
+2. Find your trace by market ID (condition ID)
+3. Inspect trace details: execution timeline, LLM inputs/outputs, token usage, costs
 
-1. **Access Opik dashboard:**
-   - Cloud: https://www.comet.com/opik
-   - Self-hosted: Your configured `OPIK_BASE_URL`
-
-2. **Find your trace:**
-   - Navigate to your project
-   - Search by market ID (condition ID)
-   - Filter by date/time
-
-3. **Inspect trace details:**
-   - View complete execution timeline
-   - Inspect LLM inputs/outputs
-   - Check token usage and costs
-   - Review error messages
-
-#### Querying Traces Programmatically
+**Query traces programmatically:**
 
 ```typescript
 import { OpikClient } from 'opik';
 
-const client = new OpikClient({
-  apiKey: process.env.OPIK_API_KEY
-});
-
-// Get traces for a market
+const client = new OpikClient({ apiKey: process.env.OPIK_API_KEY });
 const traces = await client.getTraces({
   projectName: 'market-intelligence-engine',
   filter: { threadId: '0x1234567890abcdef' }
 });
 ```
 
-#### Cost Analysis
-
-View cost breakdown in Opik:
-- Per-agent costs
-- Per-node costs
-- Total execution cost
-- Cost trends over time
-
 ## Documentation
 
-### Additional Resources
-
-#### Core Documentation
+### Core Documentation
 - **[CLI Documentation](./CLI.md)** - Complete CLI reference
 - **[Documentation Hub](./docs/README.md)** - Central documentation index
-- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment instructions
-- **[Runbook](./docs/RUNBOOK.md)** - Operational procedures and troubleshooting
+- **[Deployment Guide](./docs/DEPLOYMENT.md)** - Production deployment
+- **[Runbook](./docs/RUNBOOK.md)** - Operational procedures
 
-#### Feature Documentation
-- **[Autonomous News Agents](./docs/AUTONOMOUS_NEWS_AGENTS.md)** - Autonomous news intelligence agents with tool-calling capabilities
-- **[Agent Memory System](./src/database/MEMORY_SYSTEM_CONFIG.md)** - Closed-loop analysis with historical context
-- **[Timestamp Formatting](./src/utils/TIMESTAMP_FORMATTING.md)** - Human-readable timestamp formatting for AI agents
-- **[Workflow Service Logging](./docs/WORKFLOW_SERVICE_LOGGING.md)** - Remote workflow execution logging and monitoring
-- **[Database Module](./src/database/README.md)** - Supabase PostgreSQL integration
+### Feature Documentation
+- **[Autonomous News Agents](./docs/AUTONOMOUS_NEWS_AGENTS.md)** - Tool-calling capabilities
+- **[Agent Memory System](./src/database/MEMORY_SYSTEM_CONFIG.md)** - Closed-loop analysis
+- **[Timestamp Formatting](./src/utils/TIMESTAMP_FORMATTING.md)** - Human-readable timestamps
+- **[Workflow Service Logging](./docs/WORKFLOW_SERVICE_LOGGING.md)** - Remote execution logging
+- **[Database Module](./src/database/README.md)** - Supabase integration
 
-#### Integration Guides
-- **[LLM Provider Setup Guide](./docs/LLM_PROVIDERS.md)** - Setup instructions for OpenAI, Anthropic, Google, and Amazon Nova
-- **[Opik Integration Guide](./docs/OPIK_GUIDE.md)** - Observability and tracing setup
-- **[External Data Sources](./docs/EXTERNAL_DATA_SOURCES.md)** - NewsData.io and Polymarket API integration
-- **[Autonomous Agents Migration](./docs/AUTONOMOUS_AGENTS_MIGRATION.md)** - Migration guide for autonomous tool-calling agents
+### Integration Guides
+- **[LLM Provider Setup](./docs/LLM_PROVIDERS.md)** - OpenAI, Anthropic, Google, Nova setup
+- **[Opik Integration](./docs/OPIK_GUIDE.md)** - Observability setup
+- **[External Data Sources](./docs/EXTERNAL_DATA_SOURCES.md)** - NewsData.io and Polymarket APIs
+- **[Autonomous Agents Migration](./docs/AUTONOMOUS_AGENTS_MIGRATION.md)** - Migration guide
 
-#### Advanced Topics
-- **[Advanced Agent League](./docs/ADVANCED_AGENT_LEAGUE.md)** - Advanced multi-agent patterns and strategies
-- **[Examples](./docs/EXAMPLES.md)** - Code examples and usage patterns
+### Advanced Topics
+- **[Advanced Agent League](./docs/ADVANCED_AGENT_LEAGUE.md)** - Advanced patterns
+- **[Examples](./docs/EXAMPLES.md)** - Code examples
 
-### External Documentation
-
-- **[LangGraph Documentation](https://langchain-ai.github.io/langgraph/)** - LangGraph framework
-- **[Opik Documentation](https://www.comet.com/docs/opik/)** - Opik observability platform
-- **[Polymarket API](https://docs.polymarket.com/)** - Polymarket API reference
-- **[fast-check Documentation](https://fast-check.dev/)** - Property-based testing library
-
-### API Reference
-
-See inline TypeScript documentation in source files for detailed API reference.
+### External Resources
+- **[LangGraph Documentation](https://langchain-ai.github.io/langgraph/)**
+- **[Opik Documentation](https://www.comet.com/docs/opik/)**
+- **[Polymarket API](https://docs.polymarket.com/)**
+- **[fast-check Documentation](https://fast-check.dev/)**
 
 ## License
 
