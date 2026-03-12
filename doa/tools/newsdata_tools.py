@@ -8,8 +8,43 @@ news data using the ReAct (Reasoning + Acting) pattern.
 Requirements: 2.1-2.8
 """
 
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, field_validator
+from typing import List, Optional, Dict, Any, Union
+import ast
+
+
+def parse_list_field(value: Union[List[str], str, None]) -> Optional[List[str]]:
+    """Parse list field that may be provided as string representation.
+    
+    LangChain sometimes converts list arguments to string representations
+    (e.g., "['us', 'uk']" instead of ['us', 'uk']). This function safely
+    converts them back to actual lists.
+    
+    Args:
+        value: List, string representation of list, or None
+        
+    Returns:
+        Parsed list or None
+    """
+    if value is None:
+        return None
+    
+    if isinstance(value, list):
+        return value
+    
+    if isinstance(value, str):
+        # Try to parse as Python literal
+        try:
+            parsed = ast.literal_eval(value)
+            if isinstance(parsed, list):
+                return parsed
+        except (ValueError, SyntaxError):
+            pass
+        
+        # If it's a single value string, wrap it in a list
+        return [value]
+    
+    return None
 
 
 class FetchLatestNewsInput(BaseModel):
@@ -55,6 +90,12 @@ class FetchLatestNewsInput(BaseModel):
         True,
         description="Remove duplicate articles from results"
     )
+    
+    @field_validator('country', 'category', 'language', mode='before')
+    @classmethod
+    def parse_list_fields(cls, v):
+        """Parse list fields that may be provided as string representations."""
+        return parse_list_field(v)
 
 
 class FetchArchiveNewsInput(BaseModel):
@@ -100,6 +141,12 @@ class FetchArchiveNewsInput(BaseModel):
         True,
         description="Remove duplicate articles from results"
     )
+    
+    @field_validator('country', 'category', 'language', mode='before')
+    @classmethod
+    def parse_list_fields(cls, v):
+        """Parse list fields that may be provided as string representations."""
+        return parse_list_field(v)
 
 
 class FetchCryptoNewsInput(BaseModel):
@@ -149,6 +196,12 @@ class FetchCryptoNewsInput(BaseModel):
         True,
         description="Remove duplicate articles from results"
     )
+    
+    @field_validator('coin', 'language', mode='before')
+    @classmethod
+    def parse_list_fields(cls, v):
+        """Parse list fields that may be provided as string representations."""
+        return parse_list_field(v)
 
 
 class FetchMarketNewsInput(BaseModel):
@@ -206,6 +259,12 @@ class FetchMarketNewsInput(BaseModel):
         True,
         description="Remove duplicate articles from results"
     )
+    
+    @field_validator('symbol', 'organization', 'country', 'language', mode='before')
+    @classmethod
+    def parse_list_fields(cls, v):
+        """Parse list fields that may be provided as string representations."""
+        return parse_list_field(v)
 
 
 class ToolContext(BaseModel):
