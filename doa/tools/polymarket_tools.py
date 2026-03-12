@@ -104,6 +104,9 @@ class DetectSentimentShiftsInput(BaseModel):
     )
 
 
+
+
+
 # ============================================================================
 # Tool Execution Wrapper (Reuse from newsdata_tools)
 # ============================================================================
@@ -220,7 +223,7 @@ async def fetch_related_markets(
     market_result = await polymarket_client.fetch_market_data(condition_id)
     
     if market_result.is_err():
-        error = market_result.unwrap_err()
+        error = market_result.error
         return {
             "error": error.message,
             "related_markets": []
@@ -228,28 +231,60 @@ async def fetch_related_markets(
     
     market = market_result.unwrap()
     
+    # Extract event slug from market.events (Gamma API response)
+    event_slug = None
+    if market.events and len(market.events) > 0:
+        event_slug = market.events[0].get('slug')
+    
+    # If no event slug from events, try the old eventSlug field (CLOB API)
+    if not event_slug:
+        event_slug = market.eventSlug
+    
     # If market has event slug, fetch event to get related markets
     related_markets = []
-    if market.eventSlug:
-        event_result = await polymarket_client.fetch_event_data(market.eventSlug)
+    if event_slug:
+        event_result = await polymarket_client.fetch_event_data(event_slug)
         
         if event_result.is_ok():
             event = event_result.unwrap()
-            # Get other markets in the same event
-            for related_market in event.markets[:limit]:
-                if related_market.conditionId != condition_id:
+            # Get other markets in the same event (limit to requested amount)
+            count = 0
+            for related_market_dict in event.markets:
+                if count >= limit:
+                    break
+                    
+                related_condition_id = related_market_dict.get('conditionId')
+                # Include all markets, not just ones different from current
+                if related_condition_id:
+                    # Extract price from either format
+                    current_probability = 0.5
+                    if 'outcomePrices' in related_market_dict:
+                        try:
+                            prices = json.loads(related_market_dict['outcomePrices'])
+                            current_probability = float(prices[0]) if prices else 0.5
+                        except (json.JSONDecodeError, ValueError, IndexError):
+                            pass
+                    elif 'tokens' in related_market_dict and related_market_dict['tokens']:
+                        try:
+                            current_probability = float(related_market_dict['tokens'][0].get('price', 0.5))
+                        except (ValueError, IndexError):
+                            pass
+                    
+                    is_current = related_condition_id == condition_id
                     related_markets.append({
-                        "condition_id": related_market.conditionId,
-                        "question": related_market.question,
-                        "current_probability": json.loads(related_market.outcomePrices)[0] if related_market.outcomePrices else 0.5,
-                        "volume": related_market.volume,
-                        "liquidity": related_market.liquidity,
-                        "active": related_market.active
+                        "condition_id": related_condition_id,
+                        "question": related_market_dict.get('question', 'N/A'),
+                        "current_probability": current_probability,
+                        "volume": related_market_dict.get('volume', 0),
+                        "liquidity": related_market_dict.get('liquidity', 0),
+                        "active": related_market_dict.get('active', False),
+                        "is_current_market": is_current
                     })
+                    count += 1
     
     return {
         "condition_id": condition_id,
-        "event_slug": market.eventSlug,
+        "event_slug": event_slug,
         "related_markets": related_markets,
         "count": len(related_markets)
     }
@@ -260,46 +295,96 @@ async def fetch_historical_prices(
     timeframe: str = "7d",
     polymarket_client: Any = None
 ) -> Dict[str, Any]:
-    """Fetch historical price data for a market.
+    """Fetch historical price data for a market from CLOB API.
     
-    This method retrieves price history over a specified timeframe,
-    useful for trend analysis and momentum detection.
-    
-    Note: This is a simplified implementation. In production, you would
-    integrate with Polymarket's historical data API or CLOB API.
+    This method retrieves historical price data over a specified timeframe,
+    useful for trend analysis and momentum detection. Returns formatted data
+    optimized for charting with downsampling and statistics.
     
     Requirements: 3.1
     
     Args:
         condition_id: Condition ID of the market
-        timeframe: Time window (1d, 7d, 30d, 90d)
+        timeframe: Time window (1h, 24h, 7d, 30d)
         polymarket_client: PolymarketClient instance
         
     Returns:
-        Dictionary containing historical price data
+        Dictionary containing historical price data and statistics
     """
-    # Fetch current market data
-    market_result = await polymarket_client.fetch_market_data(condition_id)
+    # Fetch historical prices from CLOB API
+    prices_result = await polymarket_client.fetch_historical_prices(
+        condition_id=condition_id,
+        timeframe=timeframe
+    )
     
-    if market_result.is_err():
-        error = market_result.unwrap_err()
+    # If no historical data, try to get current market price as fallback
+    if prices_result.is_err():
+        market_result = await polymarket_client.fetch_market_data(condition_id)
+        
+        if market_result.is_err():
+            error = market_result.error
+            return {
+                "condition_id": condition_id,
+                "timeframe": timeframe,
+                "error": error.message,
+                "prices": [],
+                "count": 0
+            }
+        
+        # Use current market price as single data point
+        market = market_result.unwrap()
+        outcomes, prices = market.get_outcomes_and_prices()
+        current_price = prices[0] if prices else 0.5
+        
         return {
-            "error": error.message,
-            "prices": []
+            "condition_id": condition_id,
+            "timeframe": timeframe,
+            "prices": [{"price": current_price, "timestamp": int(__import__('time').time() * 1000)}],
+            "count": 1,
+            "statistics": {
+                "min_price": current_price,
+                "max_price": current_price,
+                "avg_price": current_price,
+                "current_price": current_price,
+                "price_change": 0,
+                "volatility": 0,
+                "data_points": 1
+            },
+            "note": "Using current market price (historical data unavailable)"
         }
     
-    market = market_result.unwrap()
-    current_price = json.loads(market.outcomePrices)[0] if market.outcomePrices else 0.5
+    prices_data = prices_result.unwrap()
+    prices = prices_data.get("prices", [])
     
-    # For now, return current price with metadata
-    # In production, this would fetch actual historical data
+    # Calculate statistics if we have price data
+    stats = {}
+    if prices and len(prices) > 0:
+        prices_list = []
+        for price in prices:
+            if isinstance(price, dict):
+                # Format: {"price": 0.245, "timestamp": ...}
+                if "price" in price:
+                    prices_list.append(float(price["price"]))
+            elif isinstance(price, (int, float)):
+                prices_list.append(float(price))
+        
+        if prices_list:
+            stats = {
+                "min_price": min(prices_list),
+                "max_price": max(prices_list),
+                "avg_price": sum(prices_list) / len(prices_list),
+                "current_price": prices_list[-1] if prices_list else 0.5,
+                "price_change": prices_list[-1] - prices_list[0] if len(prices_list) > 1 else 0,
+                "volatility": max(prices_list) - min(prices_list) if prices_list else 0
+            }
+    
     return {
         "condition_id": condition_id,
         "timeframe": timeframe,
-        "current_price": current_price,
-        "volume": market.volume,
-        "liquidity": market.liquidity,
-        "note": "Historical price data requires CLOB API integration"
+        "prices": prices_data.get("prices", []),
+        "count": prices_data.get("count", 0),
+        "statistics": stats,
+        "raw_data": prices_data.get("data")
     }
 
 
@@ -330,19 +415,20 @@ async def fetch_cross_market_data(
         
         if market_result.is_ok():
             market = market_result.unwrap()
-            current_price = json.loads(market.outcomePrices)[0] if market.outcomePrices else 0.5
+            outcomes, prices = market.get_outcomes_and_prices()
+            current_price = prices[0] if prices else 0.5
             
             markets_data.append({
                 "condition_id": condition_id,
                 "question": market.question,
                 "current_probability": current_price,
-                "volume": market.volume,
-                "liquidity": market.liquidity,
+                "volume": market.get_volume(),
+                "liquidity": market.get_liquidity(),
                 "active": market.active,
-                "event_slug": market.eventSlug
+                "event_slug": market.eventSlug or (market.events[0].get('slug') if market.events else None)
             })
         else:
-            error = market_result.unwrap_err()
+            error = market_result.error
             errors.append({
                 "condition_id": condition_id,
                 "error": error.message
@@ -428,13 +514,10 @@ async def detect_sentiment_shifts(
     threshold: float = 0.05,
     polymarket_client: Any = None
 ) -> Dict[str, Any]:
-    """Detect significant sentiment shifts by identifying rapid price changes.
+    """Detect significant sentiment shifts by comparing current price to historical average.
     
     This method identifies when market sentiment has shifted significantly
-    by detecting price changes that exceed a threshold.
-    
-    Note: This is a simplified implementation. In production, you would
-    compare current price to historical prices to detect actual shifts.
+    by comparing the current price to the historical average price.
     
     Requirements: 3.1
     
@@ -450,23 +533,39 @@ async def detect_sentiment_shifts(
     market_result = await polymarket_client.fetch_market_data(condition_id)
     
     if market_result.is_err():
-        error = market_result.unwrap_err()
+        error = market_result.error
         return {
+            "condition_id": condition_id,
             "error": error.message,
             "shift_detected": False
         }
     
     market = market_result.unwrap()
-    current_price = json.loads(market.outcomePrices)[0] if market.outcomePrices else 0.5
+    outcomes, prices = market.get_outcomes_and_prices()
+    current_price = prices[0] if prices else 0.5
     
-    # Calculate distance from neutral (0.5)
-    distance_from_neutral = abs(current_price - 0.5)
+    # Fetch historical prices to get baseline
+    prices_result = await polymarket_client.fetch_historical_prices(
+        condition_id=condition_id,
+        timeframe="7d"
+    )
     
-    # Detect shift if price is significantly away from neutral
-    shift_detected = distance_from_neutral > threshold
+    # If no historical data, use current price as baseline
+    if prices_result.is_err():
+        historical_avg = current_price
+    else:
+        prices_data = prices_result.unwrap()
+        stats = prices_data.get("statistics", {})
+        historical_avg = stats.get("avg_price", current_price)
+    
+    # Calculate price change from historical average
+    price_change = abs(current_price - historical_avg)
+    
+    # Detect shift if price change exceeds threshold
+    shift_detected = price_change > threshold
     
     if shift_detected:
-        if current_price > 0.5:
+        if current_price > historical_avg:
             sentiment = "bullish"
             shift_direction = "upward"
         else:
@@ -479,14 +578,13 @@ async def detect_sentiment_shifts(
     return {
         "condition_id": condition_id,
         "current_probability": current_price,
+        "historical_average": historical_avg,
         "threshold": threshold,
+        "price_change": price_change,
         "shift_detected": shift_detected,
         "shift_direction": shift_direction,
-        "sentiment": sentiment,
-        "distance_from_neutral": distance_from_neutral,
-        "note": "Shift detection requires historical price comparison for accuracy"
+        "sentiment": sentiment
     }
-
 
 
 # ============================================================================
@@ -515,17 +613,17 @@ def create_fetch_related_markets_tool(context: ToolContext) -> StructuredTool:
         if polymarket_client is None:
             return "Error: Polymarket client not available in context"
         
-        # Add client to params
-        params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
+        # Extract only the tool parameters (not the client)
+        params = {k: v for k, v in kwargs.items() if k != 'polymarket_client'}
         
         # Execute with wrapper
         async def tool_func(**p):
-            return await fetch_related_markets(**p)
+            return await fetch_related_markets(**p, polymarket_client=polymarket_client)
         
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_related_markets",
             tool_func=tool_func,
-            params=params_with_client,
+            params=params,
             context=context
         )
         
@@ -569,17 +667,17 @@ def create_fetch_historical_prices_tool(context: ToolContext) -> StructuredTool:
         if polymarket_client is None:
             return "Error: Polymarket client not available in context"
         
-        # Add client to params
-        params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
+        # Extract only the tool parameters (not the client)
+        params = {k: v for k, v in kwargs.items() if k != 'polymarket_client'}
         
         # Execute with wrapper
         async def tool_func(**p):
-            return await fetch_historical_prices(**p)
+            return await fetch_historical_prices(**p, polymarket_client=polymarket_client)
         
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_historical_prices",
             tool_func=tool_func,
-            params=params_with_client,
+            params=params,
             context=context
         )
         
@@ -622,17 +720,17 @@ def create_fetch_cross_market_data_tool(context: ToolContext) -> StructuredTool:
         if polymarket_client is None:
             return "Error: Polymarket client not available in context"
         
-        # Add client to params
-        params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
+        # Extract only the tool parameters (not the client)
+        params = {k: v for k, v in kwargs.items() if k != 'polymarket_client'}
         
         # Execute with wrapper
         async def tool_func(**p):
-            return await fetch_cross_market_data(**p)
+            return await fetch_cross_market_data(**p, polymarket_client=polymarket_client)
         
         execution_result = await execute_tool_with_wrapper(
             tool_name="fetch_cross_market_data",
             tool_func=tool_func,
-            params=params_with_client,
+            params=params,
             context=context
         )
         
@@ -676,17 +774,17 @@ def create_analyze_market_momentum_tool(context: ToolContext) -> StructuredTool:
         if polymarket_client is None:
             return "Error: Polymarket client not available in context"
         
-        # Add client to params
-        params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
+        # Extract only the tool parameters (not the client)
+        params = {k: v for k, v in kwargs.items() if k != 'polymarket_client'}
         
         # Execute with wrapper
         async def tool_func(**p):
-            return await analyze_market_momentum(**p)
+            return await analyze_market_momentum(**p, polymarket_client=polymarket_client)
         
         execution_result = await execute_tool_with_wrapper(
             tool_name="analyze_market_momentum",
             tool_func=tool_func,
-            params=params_with_client,
+            params=params,
             context=context
         )
         
@@ -730,17 +828,17 @@ def create_detect_sentiment_shifts_tool(context: ToolContext) -> StructuredTool:
         if polymarket_client is None:
             return "Error: Polymarket client not available in context"
         
-        # Add client to params
-        params_with_client = {**kwargs, 'polymarket_client': polymarket_client}
+        # Extract only the tool parameters (not the client)
+        params = {k: v for k, v in kwargs.items() if k != 'polymarket_client'}
         
         # Execute with wrapper
         async def tool_func(**p):
-            return await detect_sentiment_shifts(**p)
+            return await detect_sentiment_shifts(**p, polymarket_client=polymarket_client)
         
         execution_result = await execute_tool_with_wrapper(
             tool_name="detect_sentiment_shifts",
             tool_func=tool_func,
-            params=params_with_client,
+            params=params,
             context=context
         )
         
@@ -761,7 +859,6 @@ def create_detect_sentiment_shifts_tool(context: ToolContext) -> StructuredTool:
         func=detect_sentiment_shifts_wrapper,
         coroutine=detect_sentiment_shifts_wrapper
     )
-
 
 
 # ============================================================================

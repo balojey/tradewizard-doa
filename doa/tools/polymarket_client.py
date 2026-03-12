@@ -1,8 +1,16 @@
 """Polymarket API client for fetching market and event data.
 
-IMPORTANT: This client uses the CLOB API for fetching markets by condition_id,
-as the Gamma API does not support direct condition_id lookups. The CLOB API
-endpoint is: {clob_api_url}/markets/{condition_id}
+IMPORTANT: This client uses a two-step approach to fetch complete market data:
+1. CLOB API: Fetch market by condition_id to get market_slug
+   - Endpoint: {clob_api_url}/markets/{condition_id}
+   - Returns: Market data with market_slug, tokens (outcomes/prices), and tags
+   
+2. Gamma API: Fetch market by slug to get full details including events
+   - Endpoint: {gamma_api_url}/markets/slug/{market_slug}
+   - Returns: Complete market data with events array containing event details
+
+This two-step process ensures we get both the market data and associated event
+information needed for comprehensive market analysis.
 
 The client supports both Gamma API and CLOB API response formats through
 flexible model definitions with normalized property accessors.
@@ -30,6 +38,8 @@ from utils.result import Ok, Err, Result
 
 class PolymarketMarket(BaseModel):
     """Raw market data from Polymarket API (supports both Gamma and CLOB formats)."""
+    model_config = {"extra": "allow"}  # Allow extra fields from API responses
+    
     # Core fields (present in both APIs)
     id: Optional[str] = None
     question: str
@@ -43,9 +53,9 @@ class PolymarketMarket(BaseModel):
     # CLOB API format (tokens array)
     tokens: Optional[List[Dict[str, Any]]] = None  # CLOB API: [{"outcome": "Yes", "price": 0.52, ...}]
     
-    # Common fields
-    volume: Optional[str] = None
-    liquidity: Optional[str] = None
+    # Common fields - support both string and numeric formats
+    volume: Optional[Union[str, float]] = None
+    liquidity: Optional[Union[str, float]] = None
     active: Optional[bool] = None
     closed: Optional[bool] = None
     description: Optional[str] = None
@@ -56,11 +66,21 @@ class PolymarketMarket(BaseModel):
     icon: Optional[str] = None
     eventSlug: Optional[str] = None
     market_slug: Optional[str] = None  # CLOB API uses snake_case
+    slug: Optional[str] = None  # Gamma API uses slug
     groupItemTitle: Optional[str] = None
     groupItemThreshold: Optional[str] = None
     spread: Optional[Union[str, int, float]] = None  # Can be string, int, or float
+    
+    # Gamma API numeric fields
     volumeNum: Optional[float] = None
     liquidityNum: Optional[float] = None
+    volume24hr: Optional[float] = None
+    volume1wk: Optional[float] = None
+    volume1mo: Optional[float] = None
+    volume1yr: Optional[float] = None
+    
+    # Gamma API events array
+    events: Optional[List[Dict[str, Any]]] = None  # Gamma API includes events array
     
     @property
     def normalized_condition_id(self) -> str:
@@ -70,12 +90,41 @@ class PolymarketMarket(BaseModel):
     @property
     def normalized_market_id(self) -> str:
         """Get market ID/slug regardless of API format."""
-        return self.id or self.market_slug or ""
+        return self.id or self.market_slug or self.slug or ""
     
     @property
     def normalized_end_date(self) -> Optional[str]:
         """Get end date regardless of API format."""
         return self.endDate or self.end_date_iso
+    
+    @property
+    def normalized_market_slug(self) -> Optional[str]:
+        """Get market slug regardless of API format."""
+        return self.market_slug or self.slug
+    
+    def get_volume(self) -> float:
+        """Get volume as float, handling both string and numeric formats."""
+        if self.volumeNum is not None:
+            return float(self.volumeNum)
+        if self.volume24hr is not None:
+            return float(self.volume24hr)
+        if self.volume is not None:
+            try:
+                return float(self.volume)
+            except (ValueError, TypeError):
+                pass
+        return 0.0
+    
+    def get_liquidity(self) -> float:
+        """Get liquidity as float, handling both string and numeric formats."""
+        if self.liquidityNum is not None:
+            return float(self.liquidityNum)
+        if self.liquidity is not None:
+            try:
+                return float(self.liquidity)
+            except (ValueError, TypeError):
+                pass
+        return 0.0
     
     def get_outcomes_and_prices(self) -> tuple[List[str], List[float]]:
         """
@@ -111,12 +160,14 @@ class PolymarketMarket(BaseModel):
 
 class PolymarketEvent(BaseModel):
     """Raw event data from Polymarket API."""
+    model_config = {"extra": "allow"}  # Allow extra fields from API responses
+    
     id: str
     title: str
     description: Optional[str] = None
     slug: str
-    markets: List[PolymarketMarket] = []
-    tags: List[Dict[str, Any]] = []
+    markets: Optional[List[Dict[str, Any]]] = []  # Store as raw dicts, not PolymarketMarket objects
+    tags: Optional[List[Dict[str, Any]]] = []
     createdAt: Optional[str] = None
     updatedAt: Optional[str] = None
 
@@ -146,10 +197,11 @@ class PolymarketClient:
         condition_id: str
     ) -> Result[PolymarketMarket, IngestionError]:
         """
-        Fetch market data from Polymarket CLOB API using condition ID.
+        Fetch market data from Polymarket APIs using condition ID.
         
-        Note: The Gamma API does not support fetching markets by condition_id directly.
-        We use the CLOB API which accepts condition_id in the URL path.
+        Two-step process:
+        1. Fetch from CLOB API using condition_id to get market_slug
+        2. Fetch from Gamma API using market_slug to get full market details including events
         
         Args:
             condition_id: Polymarket condition ID
@@ -157,13 +209,14 @@ class PolymarketClient:
         Returns:
             Result containing PolymarketMarket or IngestionError
         """
-        # Use CLOB API with condition_id in URL path (not Gamma API)
-        url = f"{self.clob_api_url}/markets/{condition_id}"
+        # Step 1: Fetch from CLOB API to get market_slug
+        clob_url = f"{self.clob_api_url}/markets/{condition_id}"
+        clob_data = None
         
         for attempt in range(self.max_retries):
             try:
                 async with httpx.AsyncClient(timeout=30.0) as client:
-                    response = await client.get(url)
+                    response = await client.get(clob_url)
                     
                     # Handle rate limiting
                     if response.status_code == 429:
@@ -182,30 +235,228 @@ class PolymarketClient:
                     # Raise for other HTTP errors
                     response.raise_for_status()
                     
-                    # Parse response - CLOB API returns a single market object
-                    data = response.json()
+                    # Parse response
+                    clob_data = response.json()
                     
                     # Handle empty results
-                    if not data:
+                    if not clob_data:
                         return Err(IngestionError(
                             type="INVALID_MARKET_ID",
                             message=f"No market data found for condition_id: {condition_id}",
                             details={"condition_id": condition_id}
                         ))
                     
-                    # CLOB API returns a single market object directly
-                    market_data = data
+                    break  # Success, exit retry loop
+                    
+            except httpx.TimeoutException:
+                if attempt == self.max_retries - 1:
+                    return Err(IngestionError(
+                        type="API_UNAVAILABLE",
+                        message=f"Request timeout after {self.max_retries} attempts",
+                        details={"condition_id": condition_id}
+                    ))
+                await asyncio.sleep(self.base_backoff * (2 ** attempt))
+                
+            except httpx.HTTPStatusError as e:
+                if attempt == self.max_retries - 1:
+                    return Err(IngestionError(
+                        type="API_UNAVAILABLE",
+                        message=f"HTTP error: {e.response.status_code} - {str(e)}",
+                        details={"condition_id": condition_id, "status_code": e.response.status_code}
+                    ))
+                await asyncio.sleep(self.base_backoff * (2 ** attempt))
+                
+            except Exception as e:
+                if attempt == self.max_retries - 1:
+                    return Err(IngestionError(
+                        type="API_UNAVAILABLE",
+                        message=f"Unexpected error: {str(e)}",
+                        details={"condition_id": condition_id, "error": str(e)}
+                    ))
+                await asyncio.sleep(self.base_backoff * (2 ** attempt))
+        
+        if not clob_data:
+            return Err(IngestionError(
+                type="API_UNAVAILABLE",
+                message="Max retries exceeded",
+                details={"condition_id": condition_id}
+            ))
+        
+        # Extract market_slug from CLOB response
+        market_slug = clob_data.get("market_slug")
+        if not market_slug:
+            return Err(IngestionError(
+                type="VALIDATION_FAILED",
+                message=f"No market_slug found in CLOB API response",
+                details={"condition_id": condition_id}
+            ))
+        
+        # Step 2: Fetch from Gamma API using market_slug to get full details including events
+        gamma_url = f"{self.gamma_api_url}/markets/slug/{market_slug}"
+        
+        for attempt in range(self.max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    response = await client.get(gamma_url)
+                    
+                    # Handle rate limiting
+                    if response.status_code == 429:
+                        retry_after = int(response.headers.get("Retry-After", self.base_backoff * (2 ** attempt)))
+                        await asyncio.sleep(retry_after)
+                        continue
+                    
+                    # Handle not found
+                    if response.status_code == 404:
+                        return Err(IngestionError(
+                            type="INVALID_MARKET_ID",
+                            message=f"Market not found in Gamma API for slug: {market_slug}",
+                            details={"market_slug": market_slug, "condition_id": condition_id}
+                        ))
+                    
+                    # Raise for other HTTP errors
+                    response.raise_for_status()
+                    
+                    # Parse response
+                    gamma_data = response.json()
+                    
+                    # Handle empty results
+                    if not gamma_data:
+                        return Err(IngestionError(
+                            type="INVALID_MARKET_ID",
+                            message=f"No market data found in Gamma API for slug: {market_slug}",
+                            details={"market_slug": market_slug, "condition_id": condition_id}
+                        ))
                     
                     # Validate and parse market data
                     try:
-                        market = PolymarketMarket(**market_data)
+                        market = PolymarketMarket(**gamma_data)
                         return Ok(market)
                     except Exception as e:
                         return Err(IngestionError(
                             type="VALIDATION_FAILED",
                             message=f"Failed to validate market data: {str(e)}",
-                            details={"condition_id": condition_id, "error": str(e)}
+                            details={"market_slug": market_slug, "condition_id": condition_id, "error": str(e)}
                         ))
+                    
+            except httpx.TimeoutException:
+                if attempt == self.max_retries - 1:
+                    return Err(IngestionError(
+                        type="API_UNAVAILABLE",
+                        message=f"Request timeout after {self.max_retries} attempts",
+                        details={"market_slug": market_slug, "condition_id": condition_id}
+                    ))
+                await asyncio.sleep(self.base_backoff * (2 ** attempt))
+                
+            except httpx.HTTPStatusError as e:
+                if attempt == self.max_retries - 1:
+                    return Err(IngestionError(
+                        type="API_UNAVAILABLE",
+                        message=f"HTTP error: {e.response.status_code} - {str(e)}",
+                        details={"market_slug": market_slug, "condition_id": condition_id, "status_code": e.response.status_code}
+                    ))
+                await asyncio.sleep(self.base_backoff * (2 ** attempt))
+                
+            except Exception as e:
+                if attempt == self.max_retries - 1:
+                    return Err(IngestionError(
+                        type="API_UNAVAILABLE",
+                        message=f"Unexpected error: {str(e)}",
+                        details={"market_slug": market_slug, "condition_id": condition_id, "error": str(e)}
+                    ))
+                await asyncio.sleep(self.base_backoff * (2 ** attempt))
+        
+        # Should not reach here, but handle it
+        return Err(IngestionError(
+            type="API_UNAVAILABLE",
+            message="Max retries exceeded",
+            details={"market_slug": market_slug, "condition_id": condition_id}
+        ))
+    
+    async def fetch_historical_prices(
+        self,
+        condition_id: str,
+        timeframe: str = "7d"
+    ) -> Result[Dict[str, Any], IngestionError]:
+        """
+        Fetch historical price data from CLOB API.
+        
+        The CLOB API provides price history through the /prices endpoint.
+        
+        Args:
+            condition_id: Polymarket condition ID
+            timeframe: Time period (24h, 7d, 30d)
+            
+        Returns:
+            Result containing historical price data or IngestionError
+        """
+        # Map timeframe to seconds
+        timeframe_seconds = {
+            "1h": 3600,
+            "24h": 86400,
+            "7d": 604800,
+            "30d": 2592000,
+        }
+        
+        seconds = timeframe_seconds.get(timeframe, 604800)  # Default to 7d
+        
+        # CLOB API endpoint for price history
+        url = f"{self.clob_api_url}/prices/{condition_id}"
+        
+        for attempt in range(self.max_retries):
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    # Add query parameters for time range
+                    params = {
+                        "seconds": seconds,
+                        "limit": 1000  # Max data points
+                    }
+                    
+                    response = await client.get(url, params=params)
+                    
+                    # Handle rate limiting
+                    if response.status_code == 429:
+                        retry_after = int(response.headers.get("Retry-After", self.base_backoff * (2 ** attempt)))
+                        await asyncio.sleep(retry_after)
+                        continue
+                    
+                    # Handle not found
+                    if response.status_code == 404:
+                        return Err(IngestionError(
+                            type="INVALID_MARKET_ID",
+                            message=f"Price history not found for condition_id: {condition_id}",
+                            details={"condition_id": condition_id}
+                        ))
+                    
+                    # Raise for other HTTP errors
+                    response.raise_for_status()
+                    
+                    # Parse response
+                    data = response.json()
+                    
+                    # Handle empty results
+                    if not data:
+                        return Ok({
+                            "condition_id": condition_id,
+                            "timeframe": timeframe,
+                            "prices": [],
+                            "count": 0,
+                            "note": "No historical price data available"
+                        })
+                    
+                    # Process price data
+                    prices = []
+                    if isinstance(data, list):
+                        prices = data
+                    elif isinstance(data, dict) and "prices" in data:
+                        prices = data["prices"]
+                    
+                    return Ok({
+                        "condition_id": condition_id,
+                        "timeframe": timeframe,
+                        "prices": prices,
+                        "count": len(prices),
+                        "data": data if isinstance(data, dict) else None
+                    })
                     
             except httpx.TimeoutException:
                 if attempt == self.max_retries - 1:
@@ -254,7 +505,7 @@ class PolymarketClient:
         Returns:
             Result containing PolymarketEvent or IngestionError
         """
-        url = f"{self.gamma_api_url}/events/{event_slug}"
+        url = f"{self.gamma_api_url}/events/slug/{event_slug}"
         
         for attempt in range(self.max_retries):
             try:
@@ -337,22 +588,27 @@ class PolymarketClient:
         
         Args:
             market: Polymarket market data (from either Gamma or CLOB API)
-            event: Optional event data for additional context
+            event: Optional event data for additional context (deprecated, use market.events instead)
             
         Returns:
             MarketBriefingDocument with all required fields
         """
+        # Extract event from market.events if available (Gamma API format)
+        if not event and market.events and len(market.events) > 0:
+            event_data = market.events[0]
+            try:
+                event = PolymarketEvent(**event_data)
+            except Exception:
+                # If parsing fails, continue without event
+                event = None
+        
         # Parse outcomes and prices using the normalized method
         outcomes, prices = market.get_outcomes_and_prices()
         current_probability = prices[0] if prices else 0.5
         
-        # Parse volume and liquidity
-        try:
-            volume_24h = float(market.volume) if market.volume else 0.0
-            liquidity = float(market.liquidity) if market.liquidity else 0.0
-        except (ValueError, TypeError):
-            volume_24h = 0.0
-            liquidity = 0.0
+        # Get volume and liquidity using helper methods
+        volume_24h = market.get_volume()
+        liquidity = market.get_liquidity()
         
         # Calculate liquidity score (0-10 scale)
         # Simple heuristic: log scale based on liquidity amount
@@ -405,14 +661,24 @@ class PolymarketClient:
         
         # Build event context if available
         event_context = None
-        if event:
-            related_markets = [m.id for m in event.markets if m.id != market.id]
+        if event and event.markets:
+            # Extract market IDs from the markets list (which are now dicts)
+            related_markets = []
+            for m in event.markets:
+                if isinstance(m, dict):
+                    m_id = m.get("id")
+                else:
+                    m_id = getattr(m, "id", None)
+                
+                if m_id and m_id != market.id:
+                    related_markets.append(m_id)
+            
             event_context = EventContext(
                 event_id=event.id,
                 event_title=event.title,
                 event_description=event.description or "",
                 related_markets=related_markets[:5],  # Limit to 5
-                tags=[tag.get("label", "") for tag in event.tags]
+                tags=[tag.get("label", "") for tag in event.tags] if event.tags else []
             )
         
         # Build metadata using normalized IDs
@@ -457,6 +723,12 @@ async def fetch_and_transform_market(
     """
     Fetch market data and transform to MBD in one call.
     
+    The fetch_market_data function now handles both CLOB and Gamma API calls,
+    so event data is automatically included in the market response.
+    
+    However, the events array from Gamma API has an empty markets list.
+    To get all related markets, we also fetch the event by slug.
+    
     Args:
         condition_id: Polymarket condition ID
         config: Polymarket configuration
@@ -466,20 +738,32 @@ async def fetch_and_transform_market(
     """
     client = PolymarketClient(config)
     
-    # Fetch market data
+    # Fetch market data (includes event data from Gamma API)
     market_result = await client.fetch_market_data(condition_id)
     if market_result.is_err():
         return market_result
     
     market = market_result.unwrap()
     
-    # Optionally fetch event data
-    event = None
-    if market.eventSlug:
-        event_result = await client.fetch_event_data(market.eventSlug)
-        if event_result.is_ok():
-            event = event_result.unwrap()
+    # Fetch event by slug to get all related markets
+    if market.events and len(market.events) > 0:
+        event_slug = market.events[0].get('slug')
+        if event_slug:
+            event_result = await client.fetch_event_data(event_slug)
+            if event_result.is_ok():
+                event = event_result.unwrap()
+                # Update market.events with the full event data including markets
+                market.events[0] = {
+                    'id': event.id,
+                    'title': event.title,
+                    'slug': event.slug,
+                    'description': event.description,
+                    'markets': event.markets,
+                    'tags': event.tags,
+                    'createdAt': event.createdAt,
+                    'updatedAt': event.updatedAt,
+                }
     
-    # Transform to MBD
-    mbd = client.transform_to_mbd(market, event)
+    # Transform to MBD (event data is extracted from market.events if available)
+    mbd = client.transform_to_mbd(market)
     return Ok(mbd)

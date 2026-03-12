@@ -252,6 +252,8 @@ def create_autonomous_agent_node(
         user_message_parts = [
             f"Analyze this prediction market:",
             f"",
+            f"Market ID: {mbd.market_id}",
+            f"Condition ID: {mbd.condition_id}",
             f"Question: {mbd.question}",
             f"Current Probability: {mbd.current_probability:.1%}",
             f"Event Type: {mbd.event_type}",

@@ -82,17 +82,30 @@ def create_polling_intelligence_agent_node(config: Any, polymarket_client: Any =
     # Enhanced system prompt with tool selection strategy
     enhanced_prompt = POLLING_INTELLIGENCE_PROMPT + """
 
+CRITICAL: TOOL PARAMETER REQUIREMENTS
+
+When calling tools, you MUST use the condition_id provided in the market briefing.
+The condition_id is a unique identifier for this market on Polymarket.
+
+Example:
+- Market Question: "Will the Fed raise rates in 2026?"
+- Condition ID: "0x1234567890abcdef..."
+- CORRECT: fetch_related_markets(condition_id="0x1234567890abcdef...")
+- WRONG: fetch_related_markets(condition_id="Will the Fed raise rates in 2026?")
+
 AUTONOMOUS TOOL USAGE STRATEGY:
 
 You have access to Polymarket tools to analyze market dynamics and crowd wisdom. Use them strategically:
 
 1. **Start with fetch_related_markets** - Find cross-market patterns and context
+   - Use the condition_id from the market briefing
    - Identify related markets that provide additional signals
    - Look for correlation patterns across similar questions
    - Assess if related markets show consistent or conflicting signals
    - Use related market data to validate or challenge current market pricing
 
 2. **Use fetch_historical_prices** - Analyze price trends and patterns
+   - Use the condition_id from the market briefing
    - Examine price movements over different timeframes (1d, 7d, 30d)
    - Identify trend direction (upward, downward, sideways)
    - Assess trend strength and consistency
@@ -100,6 +113,7 @@ You have access to Polymarket tools to analyze market dynamics and crowd wisdom.
    - Calculate rate of change and acceleration
 
 3. **Use analyze_market_momentum** - Detect momentum when volume is high
+   - Use the condition_id from the market briefing
    - Calculate momentum indicators from price and volume data
    - Identify if market is gaining or losing momentum
    - Assess if current momentum is sustainable
@@ -107,6 +121,7 @@ You have access to Polymarket tools to analyze market dynamics and crowd wisdom.
    - Use momentum to gauge conviction level of market participants
 
 4. **Use detect_sentiment_shifts** - Identify rapid changes when volatility is high
+   - Use the condition_id from the market briefing
    - Detect sudden price movements above threshold (default 5%)
    - Identify catalysts for sentiment shifts
    - Assess if shifts are temporary or sustained
@@ -114,6 +129,7 @@ You have access to Polymarket tools to analyze market dynamics and crowd wisdom.
    - Evaluate if shifts represent new information or noise
 
 5. **Use fetch_cross_market_data** - Compare when related markets exist
+   - Use condition_ids from the market briefing and related markets
    - Fetch data for multiple related markets simultaneously
    - Calculate correlation coefficients between markets
    - Identify arbitrage opportunities or inconsistencies
@@ -130,8 +146,8 @@ You have access to Polymarket tools to analyze market dynamics and crowd wisdom.
 
 TOOL SELECTION LOGIC:
 
-- **Always start with fetch_related_markets** to understand context
-- **Use fetch_historical_prices** for all markets to understand trends
+- **Always start with fetch_related_markets** to understand context (use condition_id)
+- **Use fetch_historical_prices** for all markets to understand trends (use condition_id)
 - **Use analyze_market_momentum** when:
   - Volume is above average (indicates active trading)
   - You need to assess conviction level
